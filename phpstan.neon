@@ -1,0 +1,10 @@
+parameters:
+	level: 9
+	paths:
+		- src
+		- tests
+	tmpDir: .phpstan
+	checkMissingIterableValueType: true
+	checkGenericClassInNonGenericObjectType: true
+	checkUninitializedProperties: false
+	treatPhpDocTypesAsCertain: true
