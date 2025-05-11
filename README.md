@@ -1,3 +1,5 @@
+[![validate and test](https://github.com/Youniwemi/translation-checker/actions/workflows/php.yml/badge.svg)](https://github.com/Youniwemi/translation-checker/actions/workflows/php.yml)
+
 # French Typography & Translation Checker
 
 A PHP package for ensuring proper French typography and consistent terminology in PO/MO translation files. Checks are split into errors (must fix) and warnings (suggestions).
