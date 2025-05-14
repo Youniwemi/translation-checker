@@ -2,7 +2,7 @@
 
 # French Typography & Translation Checker
 
-A PHP package for ensuring proper French typography and consistent terminology in PO/MO translation files. Checks are split into errors (must fix) and warnings (suggestions).
+A PHP package for ensuring proper French typography and consistent terminology in PO translation files. Checks are split into errors (must fix) and warnings (suggestions).
 
 The main idea is to help developers and translators maintain high-quality French translations by enforcing typographic rules and checking for consistency in terminology. The rules of typography are based on the [Les règles typographiques utilisées pour la traduction de WordPress](https://fr.wordpress.org/team/handbook/polyglots/les-regles-typographiques-utilisees-pour-la-traduction-de-wp-en-francais/).
 

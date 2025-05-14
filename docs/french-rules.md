@@ -2,10 +2,10 @@
 
 ## Espaces et ponctuation
 
-### Pas d'espace avant, une espace après
+### Pas d'espace avant
 - [ ] Point (.)
 - [ ] Virgule (,)
-- [ ] Points de suspension (…)
+- [x] Points de suspension (…)
 - [ ] Parenthèse fermante )
 - [ ] Crochet fermant ]
 
@@ -13,7 +13,7 @@
 - [ ] Parenthèse ouvrante (
 - [ ] Crochet ouvrant [
 
-### Une espace insécable avant, une espace après
+### Une espace insécable avant
 - [x] Point d'exclamation (!)
 - [x] Point d'interrogation (?)
 - [x] Point-virgule (;)
@@ -44,7 +44,7 @@
 
 ### Points de suspension
 - [x] Utiliser le caractère unique (…)
-- [ ] Pas de points de suspension après "etc."
+- [x] Pas de points de suspension après "etc."
 
 ### Majuscules
 - [ ] Accent sur les majuscules (É, À, È)
@@ -78,7 +78,7 @@
 ### Standards
 - [ ] M. (et non Mr)
 - [ ] Mme (sans point)
-- [ ] etc. (avec point)
+- [x] etc. (avec point)
 - [ ] cf.
 - [ ] p. (page)
 

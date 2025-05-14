@@ -131,6 +131,43 @@ class FrenchGuidelinesCheckerTest extends TestCase
         );
     }
 
+    public function testNoEllipsisAfterEtc(): void
+    {
+        $po = <<<PO
+            msgid "For example, apples, etc..."
+            msgstr "Par exemple, pommes, etc..."
+            PO;
+        $result = $this->checker->check($po);
+
+        $this->assertCount(2, $result['errors']);
+        $this->assertStringContainsString(
+            'Utiliser le caractère unique pour les points de suspension',
+            $result['errors'][0]
+        );
+
+        $this->assertStringContainsString(
+            'Pas de points de suspension après "etc."',
+            $result['errors'][1]
+        );
+
+        $result = $this->checker->check($po, true);
+
+        $this->assertCount(2, $result['errors']);
+        $this->assertArrayHasKey('fixed_content', $result);
+        $this->assertIsString($result['fixed_content']);
+        $this->assertStringContainsString(
+            'Par exemple, pommes, etc.',
+            $result['fixed_content']
+        );
+        $this->assertStringNotContainsString(
+            'Par exemple, pommes, etc…',
+            $result['fixed_content']
+        );
+        $this->assertStringNotContainsString(
+            'Par exemple, pommes, etc...',
+            $result['fixed_content']
+        );
+    }
     public function testEllipsis(): void
     {
         $po = <<<PO

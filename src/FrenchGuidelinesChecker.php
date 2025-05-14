@@ -10,8 +10,8 @@ use Gettext\Loader\PoLoader;
 class FrenchGuidelinesChecker
 {
     private const NBSP = "\u{00A0}";
-    private const ELLIPSIS = '…';
-    private const DOUBLE_PUNCTUATION = ['!', '?', ':', ';', '»'];
+    private const ELLIPSIS = "…";
+    private const DOUBLE_PUNCTUATION = ["!", "?", ":", ";", "»"];
 
     /** @var array<string, string> */
     protected array $glossary = [];
@@ -20,11 +20,11 @@ class FrenchGuidelinesChecker
     protected function loadGlossary(): array
     {
         $glossary = [];
-        $file = __DIR__ . '/../docs/fr-glossary.csv';
+        $file = __DIR__ . "/../docs/fr-glossary.csv";
         if (file_exists($file)) {
-            $handle = fopen($file, 'r');
+            $handle = fopen($file, "r");
             if ($handle) {
-                while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+                while (($data = fgetcsv($handle, 1000, ",")) !== false) {
                     if (count($data) >= 2) {
                         $glossary[$data[0]] = $data[1];
                     }
@@ -53,20 +53,20 @@ class FrenchGuidelinesChecker
 
         foreach ($translations->getTranslations() as $translation) {
             if ($translation->isTranslated()) {
-                $translated = $translation->getTranslation() ?? '';
+                $translated = $translation->getTranslation() ?? "";
                 $result = $this->processString(
                     $translated,
                     $translation->getOriginal()
                 );
-                if (!empty($result['errors'])) {
-                    $errors = array_merge($errors, $result['errors']);
+                if (!empty($result["errors"])) {
+                    $errors = array_merge($errors, $result["errors"]);
                 }
                 if (
                     $and_fix &&
-                    isset($result['fixed_string']) &&
-                    $result['fixed_string'] !== null
+                    isset($result["fixed_string"]) &&
+                    $result["fixed_string"] !== null
                 ) {
-                    $translation->translate($result['fixed_string']);
+                    $translation->translate($result["fixed_string"]);
                 }
 
                 $original = $translation->getOriginal();
@@ -82,9 +82,9 @@ class FrenchGuidelinesChecker
         }
 
         $result = [
-            'errors' => array_unique($errors),
-            'warnings' => array_unique($warnings),
-            'fixed_content' => $and_fix
+            "errors" => array_unique($errors),
+            "warnings" => array_unique($warnings),
+            "fixed_content" => $and_fix
                 ? (new PoGenerator())->generateString($translations)
                 : null,
         ];
@@ -106,7 +106,7 @@ class FrenchGuidelinesChecker
             ) {
                 $errors[] = "Espace insécable manquant avant '$punct' :$text";
                 $fixed = (string) preg_replace(
-                    "/\s*" . preg_quote($punct, '/') . '/',
+                    "/\s*" . preg_quote($punct, "/") . "/",
                     self::NBSP . $punct,
                     $fixed
                 );
@@ -117,7 +117,7 @@ class FrenchGuidelinesChecker
             $errors[] = "Utiliser les guillemets français « » au lieu des guillemets droits :$text";
             $fixed = (string) preg_replace(
                 '/"([^"]+)"/',
-                '«' . self::NBSP . '$1' . self::NBSP . '»',
+                "«" . self::NBSP . '$1' . self::NBSP . "»",
                 $fixed
             );
         }
@@ -133,19 +133,18 @@ class FrenchGuidelinesChecker
         }
 
         if (
-            str_contains($text, '«') &&
-            !str_contains($text, '«' . self::NBSP)
+            str_contains($text, "«") &&
+            !str_contains($text, "«" . self::NBSP)
         ) {
             $errors[] = "Espace insécable manquant après « : $text";
-            $fixed = (string) str_replace('«', '«' . self::NBSP, $fixed);
+            $fixed = (string) str_replace("«", "«" . self::NBSP, $fixed);
         }
 
-        if (
-            str_contains($text, '»') &&
-            !str_contains($text, self::NBSP . '»')
-        ) {
-            $errors[] = "Espace insécable manquant avant » :$text";
-            $fixed = (string) str_replace('»', self::NBSP . '»', $fixed);
+
+        // Rule: No ellipsis after "etc."
+        if (preg_match("/\setc(\.{2,3}|…)/u", $text)) {
+            $errors[] = 'Pas de points de suspension après "etc." :' . $text;
+            $fixed = preg_replace("/etc(\.{2,3}|…)/u", "etc.", $fixed);
         }
 
         return empty($errors)
