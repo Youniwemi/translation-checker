@@ -16,6 +16,12 @@ class FrenchGuidelinesChecker
     /** @var array<string, string> */
     protected array $glossary = [];
 
+    public function __construct()
+    {
+        // Load the glossary CSV from docs/fr-glossary.csv
+        $this->glossary = $this->loadGlossary();
+    }
+
     /** @return array<string, string> */
     protected function loadGlossary(): array
     {
@@ -26,7 +32,10 @@ class FrenchGuidelinesChecker
             if ($handle) {
                 while (($data = fgetcsv($handle, 1000, ",")) !== false) {
                     if (count($data) >= 2) {
-                        $glossary[$data[0]] = $data[1];
+                        if (!isset($glossary[$data[0]])) {
+                            $glossary[$data[0]] = [];
+                        }
+                        $glossary[$data[0]][] = $data[1];
                     }
                 }
                 fclose($handle);
@@ -48,9 +57,6 @@ class FrenchGuidelinesChecker
         $loader = new PoLoader();
         $translations = $loader->loadString($content);
 
-        // Load the glossary CSV fron docs/fr-glossary.csv
-        $this->glossary = $this->loadGlossary();
-
         foreach ($translations->getTranslations() as $translation) {
             if ($translation->isTranslated()) {
                 $translated = $translation->getTranslation() ?? "";
@@ -69,15 +75,13 @@ class FrenchGuidelinesChecker
                     $translation->translate($result["fixed_string"]);
                 }
 
-                $original = $translation->getOriginal();
-                foreach ($this->glossary as $term => $preferred) {
-                    if (
-                        str_contains(strtolower($original), $term) &&
-                        !str_contains(strtolower($translated), $preferred)
-                    ) {
-                        $warnings[] = "Le terme '$term' devrait être traduit par '$preferred' : $translated";
-                    }
-                }
+                $warnings = array_merge(
+                    $this->glossaryCheck(
+                        $translation->getOriginal(),
+                        $translated
+                    ),
+                    $warnings
+                );
             }
         }
 
@@ -124,12 +128,12 @@ class FrenchGuidelinesChecker
 
         if (str_contains($text, "'")) {
             $errors[] = "Utiliser l'apostrophe typographique (') au lieu de l'apostrophe droite (') :$text";
-            $fixed = (string) str_replace("'", '’', $fixed);
+            $fixed = (string) str_replace("'", "’", $fixed);
         }
 
-        if (str_contains($text, '...')) {
+        if (str_contains($text, "...")) {
             $errors[] = "Utiliser le caractère unique pour les points de suspension (…) :$text";
-            $fixed = (string) str_replace('...', self::ELLIPSIS, $fixed);
+            $fixed = (string) str_replace("...", self::ELLIPSIS, $fixed);
         }
 
         if (
@@ -140,7 +144,6 @@ class FrenchGuidelinesChecker
             $fixed = (string) str_replace("«", "«" . self::NBSP, $fixed);
         }
 
-
         // Rule: No ellipsis after "etc."
         if (preg_match("/\setc(\.{2,3}|…)/u", $text)) {
             $errors[] = 'Pas de points de suspension après "etc." :' . $text;
@@ -148,7 +151,35 @@ class FrenchGuidelinesChecker
         }
 
         return empty($errors)
-            ? ['errors' => []]
-            : ['errors' => $errors, 'fixed_string' => $fixed];
+            ? ["errors" => []]
+            : ["errors" => $errors, "fixed_string" => $fixed];
+    }
+
+    public function glossaryCheck($original, $translated): array
+    {
+        $warnings = [];
+        foreach ($this->glossary as $term => $preferred_terms) {
+            // bail if not found
+            if (
+                !preg_match("/\b" . preg_quote($term, "/") . "\b/i", $original)
+            ) {
+                continue;
+            }
+            foreach ($preferred_terms as $preferred) {
+                if (
+                    str_contains(
+                        strtolower($translated),
+                        strtolower($preferred)
+                    )
+                ) {
+                    continue 2;
+                }
+            }
+            $warnings[] =
+                "Le terme '$term' devrait être traduit par '" .
+                implode(" ou ", $preferred_terms) .
+                "' : $translated";
+        }
+        return $warnings;
     }
 }

@@ -2,30 +2,33 @@
 <?php
 declare(strict_types=1);
 
-if (file_exists(__DIR__.'/../vendor/autoload.php')) {
-    require __DIR__.'/../vendor/autoload.php';
-} elseif (file_exists(__DIR__.'/../../../autoload.php')) {
-    require __DIR__.'/../../../autoload.php';
+if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
+    require __DIR__ . "/../vendor/autoload.php";
+} elseif (file_exists(__DIR__ . "/../../../autoload.php")) {
+    require __DIR__ . "/../../../autoload.php";
 } else {
-    fwrite(STDERR, 'Dependencies not found. Run: composer install'.PHP_EOL);
+    fwrite(STDERR, "Dependencies not found. Run: composer install" . PHP_EOL);
     exit(1);
 }
 
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
 
-$options = getopt('', ['help', 'fix', 'quiet', 'no-warnings']);
-$args = array_values(array_filter($argv, fn($arg) => !str_starts_with($arg, '-')));
+$options = getopt("", ["help", "fix", "quiet", "translate", "no-warnings"]);
+$args = array_values(
+    array_filter($argv, fn($arg) => !str_starts_with($arg, "-"))
+);
 array_shift($args); // Remove script name
 
-if (isset($options['help']) || empty($args)) {
+if (isset($options["help"]) || empty($args)) {
     echo <<<HELP
 Usage: check-french [--fix] [--quiet] <file.po> [<file2.po> ...]
-Check and optionally fix French typography in PO files.
+Check and optionally fix French typography in PO files and translates new strings if not translated yet
 
 Options:
   --fix         Fix the issues and save changes back to the file
   --quiet       Only show errors and warnings (no progress info)
   --no-warnings Only show errors (ignore warnings)
+  --translate   Translate new strings if not translated yet (coming soon)
   --help        Show this help message
 
 Examples:
@@ -39,7 +42,7 @@ HELP;
 
 $checker = new FrenchGuidelinesChecker();
 $hasErrors = false;
-$quiet = isset($options['quiet']);
+$quiet = isset($options["quiet"]);
 
 foreach ($args as $file) {
     if (!file_exists($file)) {
@@ -54,7 +57,7 @@ foreach ($args as $file) {
         continue;
     }
 
-    if (isset($options['fix']) && !is_writable($file)) {
+    if (isset($options["fix"]) && !is_writable($file)) {
         fwrite(STDERR, "Error: Cannot write to file: $file" . PHP_EOL);
         $hasErrors = true;
         continue;
@@ -62,25 +65,25 @@ foreach ($args as $file) {
 
     try {
         $content = file_get_contents($file);
-        $result = $checker->check($content, isset($options['fix']));
+        $result = $checker->check($content, isset($options["fix"]));
 
         if (!$quiet) {
             echo "Checking $file..." . PHP_EOL;
         }
 
         $hasIssues = false;
-        if (!empty($result['errors'])) {
+        if (!empty($result["errors"])) {
             $hasErrors = true;
             $hasIssues = true;
-            foreach ($result['errors'] as $error) {
-                echo "$file: ERROR: $error" . PHP_EOL;
+            foreach ($result["errors"] as $error) {
+                echo "ERROR: $error" . PHP_EOL;
             }
         }
-        
-        if (!empty($result['warnings']) && !isset($options['no-warnings'])) {
+
+        if (!empty($result["warnings"]) && !isset($options["no-warnings"])) {
             $hasIssues = true;
-            foreach ($result['warnings'] as $warning) {
-                echo "$file: WARNING: $warning" . PHP_EOL;
+            foreach ($result["warnings"] as $warning) {
+                echo "WARNING: $warning" . PHP_EOL;
             }
         }
 
@@ -88,11 +91,13 @@ foreach ($args as $file) {
             echo "No issues found in $file" . PHP_EOL;
         }
 
-        if (isset($options['fix']) && isset($result['fixed_content'])) {
+        if (isset($options["fix"]) && isset($result["fixed_content"])) {
             if (!$quiet) {
                 echo "Fixing $file..." . PHP_EOL;
             }
-            file_put_contents($file, $result['fixed_content']);
+            // save file
+            rename($file, $file . ".bak");
+            file_put_contents($file, $result["fixed_content"]);
             if (!$quiet) {
                 echo "Fixed $file" . PHP_EOL;
             }
@@ -104,3 +109,4 @@ foreach ($args as $file) {
 }
 
 exit($hasErrors ? 1 : 0);
+
