@@ -14,7 +14,7 @@ if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
 use Orhanerday\OpenAi\OpenAi;
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
 
-$options = getopt("", ["help", "fix", "quiet", "translate", "no-warnings"]);
+$options = getopt("", ["help", "fix", "quiet", "translate", "no-warnings", "interactive"]);
 $args = array_values(
     array_filter($argv, fn($arg) => !str_starts_with($arg, "-"))
 );
@@ -22,7 +22,7 @@ array_shift($args); // Remove script name
 
 if (isset($options["help"]) || empty($args)) {
     echo <<<HELP
-Usage: check-french [--fix] [--quiet] <file.po> [<file2.po> ...]
+Usage: check-french [--fix] [--quiet] [--translate] [--no-warnings] [--interactive] <file.po> [<file2.po> ...]
 Check and optionally fix French typography in PO files and translates new strings if not translated yet
 
 Options:
@@ -30,11 +30,12 @@ Options:
   --quiet       Only show errors and warnings (no progress info)
   --no-warnings Only show errors (ignore warnings)
   --translate   Translate new strings if not translated yet ( Please SET OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables)
+  --interactive Ask for confirmation before applying each translation
   --help        Show this help message
 
 Examples:
   check-french fr.po
-  check-french --fix fr.po en.po
+  check-french --fix --translate --interactive fr.po en.po
   check-french --quiet --fix *.po
 
 HELP;
@@ -58,10 +59,13 @@ if ($translate) {
         $ai->setBaseURL($apiUrl);
     } 
     $checker = new FrenchGuidelinesChecker($ai, $model);  
-    var_dump($checker);
+    if (isset($options["interactive"])) {
+        $checker->setInteractive(true);
+    }
 } else {
-    $checker = new FrenchGuidelinesChecker();  
+    $checker = new FrenchGuidelinesChecker(); 
 }
+
 
 
 $hasErrors = false;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Youniwemi\TranslationChecker;
 
-use Orhanerday\OpenAi\OpenAi;
 use Gettext\Generator\PoGenerator;
 use Gettext\Loader\PoLoader;
+use Orhanerday\OpenAi\OpenAi;
 
 class FrenchGuidelinesChecker
 {
@@ -14,17 +14,97 @@ class FrenchGuidelinesChecker
     private const ELLIPSIS = "…";
     private const DOUBLE_PUNCTUATION = ["!", "?", ":", ";", "»"];
 
-    /** @var array<string, string> */
+    /** @var array<string, array<string>> */
     protected array $glossary = [];
 
+    private bool $interactive = false;
 
-    public function __construct(private ?OpenAi  $ai = null , private $model = null)
-    {
+    public function __construct(
+        private ?OpenAi $ai = null,
+        private ?string $model = null
+    ) {
         // Load the glossary CSV from docs/fr-glossary.csv
         $this->glossary = $this->loadGlossary();
     }
 
-    /** @return array<string, string> */
+    public function setInteractive(bool $interactive): void
+    {
+        $this->interactive = $interactive;
+    }
+
+    /**
+     * Prompt the user for confirmation on the suggested translation
+     *
+     * @param string $original The original English text
+     * @param string $suggested The suggested French translation
+     * @param array<string, array<string>> $glossary The glossary terms
+     * @return array{string|null, string|null} The translated text and a comment
+     */
+    public function promptUser(
+        string $original,
+        string $suggested,
+        array $glossary = []
+    ): array {
+        echo "\n\033[1;33mOriginal :\033[0m\n\033[1;33m==========\033[0m\n\033[1;37m$original\033[0m\n\n";
+        // show glossary to the user
+        if (!empty($glossary)) {
+            echo "\033[1;33mGlossary :\033[0m\n\033[1;33m==========\033[0m\n\033[1;37m";
+            foreach ($glossary as $term => $preferred) {
+                echo "- $term -> " . implode(" or ", $preferred) . "\n";
+            }
+            echo "\n";
+        }
+        echo "\033[1;32mSuggested translation :\033[0m\n\033[1;32m=======================\033[0m\n\033[1;37m$suggested\033[0m\n\n";
+        echo "\033[1;36mChoose an action:\033[0m\n\033[1;36m==================\033[0m\n";
+        echo "\033[1;37m[\033[1;32mY\033[1;37m] Accept translation\n";
+        echo "[\033[1;33mW\033[1;37m] Accept but needs review later\n";
+        echo "[\033[1;31mN\033[1;37m] Reject translation\n";
+        echo "[\033[1;36mE\033[1;37m] Edit in default editor\n";
+        echo "[\033[1;35mS\033[1;37m] Stop translation and continue later (This will save the changes)\n";
+        echo "\n\033[1;37mYour choice (\033[1;32mY\033[1;37m/\033[1;33mW\033[1;37m/\033[1;31mN\033[1;37m/\033[1;36mE\033[1;37m/\033[1;35mS\033[1;37m) \033[1;37m[\033[1;32mY\033[1;37m]: \033[0m";
+
+        $handle = fopen("php://stdin", "r");
+        if ($handle === false) {
+            throw new \RuntimeException("Failed to open stdin");
+        }
+        $line = fgets($handle);
+        if ($line === false) {
+            throw new \RuntimeException("Failed to read from stdin");
+        }
+        $response = strtolower(trim($line));
+        fclose($handle);
+
+        if ($response === "y" || $response === "") {
+            return [$suggested, null];
+        } elseif ($response === "w") {
+            // Add a comment to mark this translation for review
+            return [$suggested, "fuzzy"];
+        } elseif ($response === "s") {
+            return [null, "stop"];
+        } elseif ($response === "e") {
+            // Create a temporary file with the suggested translation
+            $tmpfile = tempnam(sys_get_temp_dir(), "translation_");
+            file_put_contents($tmpfile, $suggested);
+
+            // Get the default editor from environment, fallback to 'nano' if not set
+            $editor = getenv("EDITOR") ?: "nano";
+
+            // Open the default editor in interactive mode
+            passthru("$editor $tmpfile");
+
+            // Read the edited content
+            $translation = file_get_contents($tmpfile);
+
+            // Clean up
+            unlink($tmpfile);
+
+            return [$translation ? trim($translation) : null, null];
+        }
+
+        return [null, null];
+    }
+
+    /** @return array<string, array<string>> */
     protected function loadGlossary(): array
     {
         $glossary = [];
@@ -51,10 +131,14 @@ class FrenchGuidelinesChecker
      * @param bool $and_fix Whether to fix the content
      * @return array{errors: string[], warnings: string[], fixed_content: string|null}
      */
-    public function check(string $content, bool $and_fix = false, bool $translate = false): array
-    {
+    public function check(
+        string $content,
+        bool $and_fix = false,
+        bool $translate = false
+    ): array {
         $errors = [];
         $warnings = [];
+        $stop_translation = false;
 
         $loader = new PoLoader();
         $translations = $loader->loadString($content);
@@ -63,12 +147,19 @@ class FrenchGuidelinesChecker
             $original = $translation->getOriginal();
             $translated = $translation->getTranslation() ?? "";
 
-            if (empty($translated) && $translate) {
-                echo "Translating $original...". PHP_EOL;
-                $translated = $this->translate($original);
-                if ($translated !== null) {
-                    echo "Translation : $translated...". PHP_EOL;
-                    $translation->translate($translated);
+            if (empty($translated) && $translate && !$stop_translation) {
+                $suggestion = $this->translate($original);
+                if ($suggestion) {
+                    [$translated, $flag] = $suggestion;
+                    // We just stop, we won't handle this translation
+                    if ($flag === "stop") {
+                        $stop_translation = true;
+                    } elseif ($translated !== null) {
+                        $translation->translate($translated);
+                        if ($flag !== null) {
+                            $translation->getFlags()->add($flag);
+                        }
+                    }
                 }
             }
 
@@ -83,7 +174,7 @@ class FrenchGuidelinesChecker
                 }
                 if (
                     $and_fix &&
-                    isset($result["fixed_string"]) &&
+                    $result["errors"] &&
                     $result["fixed_string"] !== null
                 ) {
                     $translation->translate($result["fixed_string"]);
@@ -110,7 +201,14 @@ class FrenchGuidelinesChecker
         return $result;
     }
 
-    /** @return array{errors: string[], fixed_string: string}|array{errors: string[]} */
+    /**
+     * Process a string to check for French typographical errors
+     *
+     * @param string $text The text to process
+     * @param string $original The original English text
+     * @return array{'errors':array<int,string>, 'fixed_string': string} An array containing the errors and the
+     *                                 fixed string
+     */
     private function processString(string $text, string $original): array
     {
         $errors = [];
@@ -161,15 +259,21 @@ class FrenchGuidelinesChecker
         // Rule: No ellipsis after "etc."
         if (preg_match("/\setc(\.{2,3}|…)/u", $text)) {
             $errors[] = 'Pas de points de suspension après "etc." :' . $text;
-            $fixed = preg_replace("/etc(\.{2,3}|…)/u", "etc.", $fixed);
+            $fixed = (string) preg_replace("/etc(\.{2,3}|…)/u", "etc.", $fixed);
         }
 
-        return empty($errors)
-            ? ["errors" => []]
-            : ["errors" => $errors, "fixed_string" => $fixed];
+        return ["errors" => $errors, "fixed_string" => $fixed];
     }
 
-    public function glossaryCheck($original, $translated): array
+    /**
+     * Check the translation against the glossary terms
+     *
+     * @param string $original The original English text
+     * @param string $translated The translated French text
+     * @return array<string> An array of warnings if any glossary terms are not
+     *                      translated correctly
+     */
+    public function glossaryCheck(string $original, string $translated): array
     {
         $warnings = [];
         foreach ($this->glossary as $term => $preferred_terms) {
@@ -198,20 +302,25 @@ class FrenchGuidelinesChecker
     }
 
     public const SYSTEM_PROMPT = <<<PROMPT
-    You are a professional translator. Translate the following text from English to French.
-    PROMPT;
+Translate the following English text to French, maintaining the original tone and formatting.
+Focus on accuracy and cultural context. Don't add or remove any information.
+It is very important to not write explanations. Do not echo my prompt. Do not remind me what I asked you for. Do not apologize. Do not self-reference. Do not use generic filler phrases. Get to the point precisely and accurately. Don't add or remove any information. Do not explain what and why, just give me your best possible result.
+PROMPT;
     public const SYSTEM_PROMPT_INTRODUCE_GLOSSARY = <<<PROMPT
-    Please use these specific translations for the following terms:
-    PROMPT;
+Use these exact translations for the specified terms :
+PROMPT;
 
     /**
      * Translates a string from English to French using the configured AI service
      * while respecting glossary terms
-     * 
+     *
      * @param string $original The original English text to translate
-     * @return string|null The translated text or null if translation failed
+     * @return array{string|null, string|null}|null An array containing the translated text and a comment
+     *               indicating if the translation was fuzzy or not
+     *               (null if no translation was made)
+     *               (null if no comment was made)
      */
-    public function translate(string $original): ?string 
+    public function translate(string $original): array|null
     {
         if (!$this->ai) {
             return null;
@@ -220,7 +329,9 @@ class FrenchGuidelinesChecker
         // Extract relevant glossary terms
         $relevantTerms = [];
         foreach ($this->glossary as $term => $preferred_terms) {
-            if (preg_match("/\b" . preg_quote($term, "/") . "\b/i", $original)) {
+            if (
+                preg_match("/\b" . preg_quote($term, "/") . "\b/i", $original)
+            ) {
                 $relevantTerms[$term] = $preferred_terms;
             }
         }
@@ -228,33 +339,52 @@ class FrenchGuidelinesChecker
 
         // Build the prompt with glossary terms
         if (!empty($relevantTerms)) {
-            $systemPrompt .= "\n".self::SYSTEM_PROMPT_INTRODUCE_GLOSSARY."\n";
+            $systemPrompt .=
+                "\n" . self::SYSTEM_PROMPT_INTRODUCE_GLOSSARY . "\n";
             foreach ($relevantTerms as $term => $preferred) {
-                $systemPrompt .= "- $term -> " . implode(" or ", $preferred) . "\n";
+                $systemPrompt .=
+                    "- $term -> " . implode(" or ", $preferred) . "\n";
             }
         }
 
         $request = [
-            'model' => $this->model ?? 'gpt-3.5-turbo',
-            'messages' => [
+            "model" => $this->model ?? "gpt-3.5-turbo",
+            "messages" => [
                 [
                     "role" => "system",
-                    "content" => $systemPrompt
+                    "content" => $systemPrompt,
                 ],
                 [
                     "role" => "user",
-                    "content" => $original
-                ]
+                    "content" => $original,
+                ],
             ],
-            'temperature' => 0.8,
+            "temperature" => 0.8,
         ];
 
         $response = $this->ai->chat($request);
-
-
+        if ($response === false || !is_string($response)) {
+            return [null, null];
+        }
         $response_array = json_decode($response, true);
-        return isset($response_array['choices'][0]['message']['content']) 
-            ? trim($response_array['choices'][0]['message']['content'])
-            : null;
+        if (
+            !is_array($response_array) ||
+            !isset($response_array["choices"]) ||
+            !is_array($response_array["choices"]) ||
+            !isset($response_array["choices"][0]["message"]["content"])
+        ) {
+            return [null, null];
+        }
+        $suggested = trim($response_array["choices"][0]["message"]["content"]);
+        $flag = null;
+        if ($suggested && $this->interactive) {
+            [$suggested, $flag] = $this->promptUser(
+                $original,
+                $suggested,
+                $relevantTerms
+            );
+        }
+
+        return [$suggested, $flag];
     }
 }
