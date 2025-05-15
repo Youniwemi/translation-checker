@@ -11,6 +11,7 @@ if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
     exit(1);
 }
 
+use Orhanerday\OpenAi\OpenAi;
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
 
 $options = getopt("", ["help", "fix", "quiet", "translate", "no-warnings"]);
@@ -28,7 +29,7 @@ Options:
   --fix         Fix the issues and save changes back to the file
   --quiet       Only show errors and warnings (no progress info)
   --no-warnings Only show errors (ignore warnings)
-  --translate   Translate new strings if not translated yet (coming soon)
+  --translate   Translate new strings if not translated yet ( Please SET OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables)
   --help        Show this help message
 
 Examples:
@@ -40,7 +41,29 @@ HELP;
     exit(0);
 }
 
-$checker = new FrenchGuidelinesChecker();
+
+
+$translate = isset($options["translate"]);
+
+if ($translate) {
+    $apiKey = getenv('OPENAI_API_KEY');
+    $apiUrl = getenv('OPENAI_API_URL');
+    $model = getenv('OPENAI_MODEL') ?: 'gpt-3.5-turbo';
+    if (empty( $apiKey) && empty($apiUrl)) {
+        fwrite(STDERR, "Error: OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables are not set. Please set them before running the script.". PHP_EOL);
+        exit(1);
+    }
+    $ai = new OpenAi($apiKey);
+    if($apiUrl){
+        $ai->setBaseURL($apiUrl);
+    } 
+    $checker = new FrenchGuidelinesChecker($ai, $model);  
+    var_dump($checker);
+} else {
+    $checker = new FrenchGuidelinesChecker();  
+}
+
+
 $hasErrors = false;
 $quiet = isset($options["quiet"]);
 
@@ -65,7 +88,7 @@ foreach ($args as $file) {
 
     try {
         $content = file_get_contents($file);
-        $result = $checker->check($content, isset($options["fix"]));
+        $result = $checker->check($content, isset($options["fix"]) , $translate);
 
         if (!$quiet) {
             echo "Checking $file..." . PHP_EOL;
@@ -102,7 +125,7 @@ foreach ($args as $file) {
                 echo "Fixed $file" . PHP_EOL;
             }
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         fwrite(STDERR, "Error processing $file: " . $e->getMessage() . PHP_EOL);
         $hasErrors = true;
     }

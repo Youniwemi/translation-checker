@@ -191,6 +191,56 @@ PO;
         );
     }
 
+    public function testTranslateEmptyStringWithGlossary(): void
+    {
+        // Mock OpenAI client
+        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
+        $openai->expects($this->once())
+            ->method('chat')
+            ->with($this->callback(function ($params) {
+                // Verify that glossary terms are included in the prompt
+                return isset($params['model']) 
+                    && $params['model'] === 'mymodel'
+                    && isset($params['messages'])
+                    && is_array($params['messages'])
+                    && str_contains($params['messages'][0]['content'], 'archive -> archive or archiver');
+            }))
+            ->willReturn(json_encode([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => 'Veuillez archiver vos documents'
+                        ]
+                    ]
+                ]
+            ]));
+
+        $checker = new FrenchGuidelinesChecker($openai, "mymodel");
+        
+
+        $result = $checker->translate("Please archive your documents");
+
+        $this->assertEquals("Veuillez archiver vos documents", $result );
+
+    }
+
+    public function testTranslateWithNoConfiguration(): void
+    {
+        $checker = new FrenchGuidelinesChecker();
+        
+        $po = <<<PO
+msgid "Hello world!"
+msgstr ""
+PO;
+
+        $result = $checker->translate($po);
+        
+        // Should not modify content when no translation service is configured
+        $this->assertNull($result);
+
+    }
+
+
     public static function glossaryData(): array
     {
         return [
