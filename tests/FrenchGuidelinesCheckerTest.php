@@ -314,9 +314,9 @@ class FrenchGuidelinesCheckerTest extends TestCase
             ->setConstructorArgs([$openai, 'mymodel'])
             ->onlyMethods(['promptUser'])
             ->getMock();
-        
+
         $checker->setInteractive(true);
-        
+
         // Set up the promptUser mock to return accepted translation
         $checker->expects($this->once())
             ->method('promptUser')
@@ -328,9 +328,13 @@ class FrenchGuidelinesCheckerTest extends TestCase
             ->willReturn(['Bonjour le monde', null]);
 
         $result = $checker->translate('Hello world');
-        
-        $this->assertEquals('Bonjour le monde', $result[0]);
-        $this->assertNull($result[1]); // No flags for accepted translation
+        if ($result) {
+            $this->assertEquals('Bonjour le monde', $result[0]);
+            $this->assertNull($result[1]); // No flags for accepted translation
+        } else {
+            $this->fail('Translation result should not be null');
+        }
+
     }
 
     public function testInteractiveTranslationWithReview(): void
@@ -356,9 +360,9 @@ class FrenchGuidelinesCheckerTest extends TestCase
             ->setConstructorArgs([$openai, 'mymodel'])
             ->onlyMethods(['promptUser'])
             ->getMock();
-        
+
         $checker->setInteractive(true);
-        
+
         // Set up the promptUser mock to return translation with fuzzy flag
         $checker->expects($this->once())
             ->method('promptUser')
@@ -370,9 +374,12 @@ class FrenchGuidelinesCheckerTest extends TestCase
             ->willReturn(['Bonjour le monde', 'fuzzy']);
 
         $result = $checker->translate('Hello world');
-        
-        $this->assertEquals('Bonjour le monde', $result[0]);
-        $this->assertEquals('fuzzy', $result[1]);
+        if ($result) {
+            $this->assertEquals('Bonjour le monde', $result[0]);
+            $this->assertEquals('fuzzy', $result[1]);
+        } else {
+            $this->fail('Translation result should not be null');
+        }
     }
 
     public function testInteractiveTranslationWithStop(): void
@@ -398,9 +405,9 @@ class FrenchGuidelinesCheckerTest extends TestCase
             ->setConstructorArgs([$openai, 'mymodel'])
             ->onlyMethods(['promptUser'])
             ->getMock();
-        
+
         $checker->setInteractive(true);
-        
+
         // Set up the promptUser mock to return stop flag
         $checker->expects($this->once())
             ->method('promptUser')
@@ -412,8 +419,12 @@ class FrenchGuidelinesCheckerTest extends TestCase
             ->willReturn([null, 'stop']);
 
         $result = $checker->translate('Hello world');
-        
-        $this->assertNull($result[0]);
-        $this->assertEquals('stop', $result[1]);
+        if ($result) {
+            $this->assertNull($result[0]);
+            $this->assertEquals('stop', $result[1]);
+        } else {
+            $this->fail('Translation result should not be null');
+        }
+
     }
 }

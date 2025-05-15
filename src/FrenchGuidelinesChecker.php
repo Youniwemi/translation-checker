@@ -11,8 +11,8 @@ use Orhanerday\OpenAi\OpenAi;
 class FrenchGuidelinesChecker
 {
     private const NBSP = "\u{00A0}";
-    private const ELLIPSIS = "…";
-    private const DOUBLE_PUNCTUATION = ["!", "?", ":", ";", "»"];
+    private const ELLIPSIS = '…';
+    private const DOUBLE_PUNCTUATION = ['!', '?', ':', ';', '»'];
 
     /** @var array<string, array<string>> */
     protected array $glossary = [];
@@ -50,7 +50,7 @@ class FrenchGuidelinesChecker
         if (!empty($glossary)) {
             echo "\033[1;33mGlossary :\033[0m\n\033[1;33m==========\033[0m\n\033[1;37m";
             foreach ($glossary as $term => $preferred) {
-                echo "- $term -> " . implode(" or ", $preferred) . "\n";
+                echo "- $term -> " . implode(' or ', $preferred) . "\n";
             }
             echo "\n";
         }
@@ -63,31 +63,31 @@ class FrenchGuidelinesChecker
         echo "[\033[1;35mS\033[1;37m] Stop translation and continue later (This will save the changes)\n";
         echo "\n\033[1;37mYour choice (\033[1;32mY\033[1;37m/\033[1;33mW\033[1;37m/\033[1;31mN\033[1;37m/\033[1;36mE\033[1;37m/\033[1;35mS\033[1;37m) \033[1;37m[\033[1;32mY\033[1;37m]: \033[0m";
 
-        $handle = fopen("php://stdin", "r");
+        $handle = fopen('php://stdin', 'r');
         if ($handle === false) {
-            throw new \RuntimeException("Failed to open stdin");
+            throw new \RuntimeException('Failed to open stdin');
         }
         $line = fgets($handle);
         if ($line === false) {
-            throw new \RuntimeException("Failed to read from stdin");
+            throw new \RuntimeException('Failed to read from stdin');
         }
         $response = strtolower(trim($line));
         fclose($handle);
 
-        if ($response === "y" || $response === "") {
+        if ($response === 'y' || $response === '') {
             return [$suggested, null];
-        } elseif ($response === "w") {
+        } elseif ($response === 'w') {
             // Add a comment to mark this translation for review
-            return [$suggested, "fuzzy"];
-        } elseif ($response === "s") {
-            return [null, "stop"];
-        } elseif ($response === "e") {
+            return [$suggested, 'fuzzy'];
+        } elseif ($response === 's') {
+            return [null, 'stop'];
+        } elseif ($response === 'e') {
             // Create a temporary file with the suggested translation
-            $tmpfile = tempnam(sys_get_temp_dir(), "translation_");
+            $tmpfile = tempnam(sys_get_temp_dir(), 'translation_');
             file_put_contents($tmpfile, $suggested);
 
             // Get the default editor from environment, fallback to 'nano' if not set
-            $editor = getenv("EDITOR") ?: "nano";
+            $editor = getenv('EDITOR') ?: 'nano';
 
             // Open the default editor in interactive mode
             passthru("$editor $tmpfile");
@@ -108,11 +108,11 @@ class FrenchGuidelinesChecker
     protected function loadGlossary(): array
     {
         $glossary = [];
-        $file = __DIR__ . "/../docs/fr-glossary.csv";
+        $file = __DIR__ . '/../docs/fr-glossary.csv';
         if (file_exists($file)) {
-            $handle = fopen($file, "r");
+            $handle = fopen($file, 'r');
             if ($handle) {
-                while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+                while (($data = fgetcsv($handle, 1000, ',')) !== false) {
                     if (count($data) >= 2) {
                         if (!isset($glossary[$data[0]])) {
                             $glossary[$data[0]] = [];
@@ -145,14 +145,14 @@ class FrenchGuidelinesChecker
 
         foreach ($translations->getTranslations() as $translation) {
             $original = $translation->getOriginal();
-            $translated = $translation->getTranslation() ?? "";
+            $translated = $translation->getTranslation() ?? '';
 
             if (empty($translated) && $translate && !$stop_translation) {
                 $suggestion = $this->translate($original);
                 if ($suggestion) {
                     [$translated, $flag] = $suggestion;
                     // We just stop, we won't handle this translation
-                    if ($flag === "stop") {
+                    if ($flag === 'stop') {
                         $stop_translation = true;
                     } elseif ($translated !== null) {
                         $translation->translate($translated);
@@ -164,20 +164,20 @@ class FrenchGuidelinesChecker
             }
 
             if ($translation->isTranslated()) {
-                $translated = $translation->getTranslation() ?? "";
+                $translated = $translation->getTranslation() ?? '';
                 $result = $this->processString(
                     $translated,
                     $translation->getOriginal()
                 );
-                if (!empty($result["errors"])) {
-                    $errors = array_merge($errors, $result["errors"]);
+                if (!empty($result['errors'])) {
+                    $errors = array_merge($errors, $result['errors']);
                 }
                 if (
                     $and_fix &&
-                    $result["errors"] &&
-                    $result["fixed_string"] !== null
+                    $result['errors'] &&
+                    $result['fixed_string'] !== null
                 ) {
-                    $translation->translate($result["fixed_string"]);
+                    $translation->translate($result['fixed_string']);
                 }
 
                 $warnings = array_merge(
@@ -191,9 +191,9 @@ class FrenchGuidelinesChecker
         }
 
         $result = [
-            "errors" => array_unique($errors),
-            "warnings" => array_unique($warnings),
-            "fixed_content" => $and_fix
+            'errors' => array_unique($errors),
+            'warnings' => array_unique($warnings),
+            'fixed_content' => $and_fix
                 ? (new PoGenerator())->generateString($translations)
                 : null,
         ];
@@ -222,7 +222,7 @@ class FrenchGuidelinesChecker
             ) {
                 $errors[] = "Espace insécable manquant avant '$punct' :$text";
                 $fixed = (string) preg_replace(
-                    "/\s*" . preg_quote($punct, "/") . "/",
+                    "/\s*" . preg_quote($punct, '/') . '/',
                     self::NBSP . $punct,
                     $fixed
                 );
@@ -233,36 +233,36 @@ class FrenchGuidelinesChecker
             $errors[] = "Utiliser les guillemets français « » au lieu des guillemets droits :$text";
             $fixed = (string) preg_replace(
                 '/"([^"]+)"/',
-                "«" . self::NBSP . '$1' . self::NBSP . "»",
+                '«' . self::NBSP . '$1' . self::NBSP . '»',
                 $fixed
             );
         }
 
         if (str_contains($text, "'")) {
             $errors[] = "Utiliser l'apostrophe typographique (') au lieu de l'apostrophe droite (') :$text";
-            $fixed = (string) str_replace("'", "’", $fixed);
+            $fixed = (string) str_replace("'", '’', $fixed);
         }
 
-        if (str_contains($text, "...")) {
+        if (str_contains($text, '...')) {
             $errors[] = "Utiliser le caractère unique pour les points de suspension (…) :$text";
-            $fixed = (string) str_replace("...", self::ELLIPSIS, $fixed);
+            $fixed = (string) str_replace('...', self::ELLIPSIS, $fixed);
         }
 
         if (
-            str_contains($text, "«") &&
-            !str_contains($text, "«" . self::NBSP)
+            str_contains($text, '«') &&
+            !str_contains($text, '«' . self::NBSP)
         ) {
             $errors[] = "Espace insécable manquant après « : $text";
-            $fixed = (string) str_replace("«", "«" . self::NBSP, $fixed);
+            $fixed = (string) str_replace('«', '«' . self::NBSP, $fixed);
         }
 
         // Rule: No ellipsis after "etc."
         if (preg_match("/\setc(\.{2,3}|…)/u", $text)) {
             $errors[] = 'Pas de points de suspension après "etc." :' . $text;
-            $fixed = (string) preg_replace("/etc(\.{2,3}|…)/u", "etc.", $fixed);
+            $fixed = (string) preg_replace("/etc(\.{2,3}|…)/u", 'etc.', $fixed);
         }
 
-        return ["errors" => $errors, "fixed_string" => $fixed];
+        return ['errors' => $errors, 'fixed_string' => $fixed];
     }
 
     /**
@@ -279,7 +279,7 @@ class FrenchGuidelinesChecker
         foreach ($this->glossary as $term => $preferred_terms) {
             // bail if not found
             if (
-                !preg_match("/\b" . preg_quote($term, "/") . "\b/i", $original)
+                !preg_match("/\b" . preg_quote($term, '/') . "\b/i", $original)
             ) {
                 continue;
             }
@@ -295,20 +295,20 @@ class FrenchGuidelinesChecker
             }
             $warnings[] =
                 "Le terme '$term' devrait être traduit par '" .
-                implode(" ou ", $preferred_terms) .
+                implode(' ou ', $preferred_terms) .
                 "' : $translated";
         }
         return $warnings;
     }
 
     public const SYSTEM_PROMPT = <<<PROMPT
-Translate the following English text to French, maintaining the original tone and formatting.
-Focus on accuracy and cultural context. Don't add or remove any information.
-It is very important to not write explanations. Do not echo my prompt. Do not remind me what I asked you for. Do not apologize. Do not self-reference. Do not use generic filler phrases. Get to the point precisely and accurately. Don't add or remove any information. Do not explain what and why, just give me your best possible result.
-PROMPT;
+        Translate the following English text to French, maintaining the original tone and formatting.
+        Focus on accuracy and cultural context. Don't add or remove any information.
+        It is very important to not write explanations. Do not echo my prompt. Do not remind me what I asked you for. Do not apologize. Do not self-reference. Do not use generic filler phrases. Get to the point precisely and accurately. Don't add or remove any information. Do not explain what and why, just give me your best possible result.
+        PROMPT;
     public const SYSTEM_PROMPT_INTRODUCE_GLOSSARY = <<<PROMPT
-Use these exact translations for the specified terms :
-PROMPT;
+        Use these exact translations for the specified terms :
+        PROMPT;
 
     /**
      * Translates a string from English to French using the configured AI service
@@ -330,7 +330,7 @@ PROMPT;
         $relevantTerms = [];
         foreach ($this->glossary as $term => $preferred_terms) {
             if (
-                preg_match("/\b" . preg_quote($term, "/") . "\b/i", $original)
+                preg_match("/\b" . preg_quote($term, '/') . "\b/i", $original)
             ) {
                 $relevantTerms[$term] = $preferred_terms;
             }
@@ -343,23 +343,23 @@ PROMPT;
                 "\n" . self::SYSTEM_PROMPT_INTRODUCE_GLOSSARY . "\n";
             foreach ($relevantTerms as $term => $preferred) {
                 $systemPrompt .=
-                    "- $term -> " . implode(" or ", $preferred) . "\n";
+                    "- $term -> " . implode(' or ', $preferred) . "\n";
             }
         }
 
         $request = [
-            "model" => $this->model ?? "gpt-3.5-turbo",
-            "messages" => [
+            'model' => $this->model ?? 'gpt-3.5-turbo',
+            'messages' => [
                 [
-                    "role" => "system",
-                    "content" => $systemPrompt,
+                    'role' => 'system',
+                    'content' => $systemPrompt,
                 ],
                 [
-                    "role" => "user",
-                    "content" => $original,
+                    'role' => 'user',
+                    'content' => $original,
                 ],
             ],
-            "temperature" => 0.8,
+            'temperature' => 0.8,
         ];
 
         $response = $this->ai->chat($request);
@@ -369,13 +369,13 @@ PROMPT;
         $response_array = json_decode($response, true);
         if (
             !is_array($response_array) ||
-            !isset($response_array["choices"]) ||
-            !is_array($response_array["choices"]) ||
-            !isset($response_array["choices"][0]["message"]["content"])
+            !isset($response_array['choices']) ||
+            !is_array($response_array['choices']) ||
+            !isset($response_array['choices'][0]['message']['content'])
         ) {
             return [null, null];
         }
-        $suggested = trim($response_array["choices"][0]["message"]["content"]);
+        $suggested = trim($response_array['choices'][0]['message']['content']);
         $flag = null;
         if ($suggested && $this->interactive) {
             [$suggested, $flag] = $this->promptUser(
