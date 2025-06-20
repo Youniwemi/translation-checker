@@ -129,12 +129,15 @@ class FrenchGuidelinesChecker
     /**
      * @param string $content The content to check
      * @param bool $and_fix Whether to fix the content
+     * @param bool $translate Whether to translate missing strings
+     * @param string $targetLang The target language code
      * @return array{errors: string[], warnings: string[], fixed_content: string|null}
      */
     public function check(
         string $content,
         bool $and_fix = false,
-        bool $translate = false
+        bool $translate = false,
+        string $targetLang = 'fr'
     ): array {
         $errors = [];
         $warnings = [];
@@ -148,7 +151,7 @@ class FrenchGuidelinesChecker
             $translated = $translation->getTranslation() ?? '';
 
             if (empty($translated) && $translate && !$stop_translation) {
-                $suggestion = $this->translate($original);
+                $suggestion = $this->translate($original, $targetLang);
                 if ($suggestion) {
                     [$translated, $flag] = $suggestion;
                     // We just stop, we won't handle this translation
@@ -165,28 +168,33 @@ class FrenchGuidelinesChecker
 
             if ($translation->isTranslated()) {
                 $translated = $translation->getTranslation() ?? '';
-                $result = $this->processString(
-                    $translated,
-                    $translation->getOriginal()
-                );
-                if (!empty($result['errors'])) {
-                    $errors = array_merge($errors, $result['errors']);
-                }
-                if (
-                    $and_fix &&
-                    $result['errors'] &&
-                    $result['fixed_string'] !== null
-                ) {
-                    $translation->translate($result['fixed_string']);
-                }
 
-                $warnings = array_merge(
-                    $this->glossaryCheck(
-                        $translation->getOriginal(),
-                        $translated
-                    ),
-                    $warnings
-                );
+                // Only apply typography rules for French
+                if ($targetLang === 'fr') {
+                    $result = $this->processString(
+                        $translated,
+                        $translation->getOriginal()
+                    );
+                    if (!empty($result['errors'])) {
+                        $errors = array_merge($errors, $result['errors']);
+                    }
+                    if (
+                        $and_fix &&
+                        $result['errors'] &&
+                        $result['fixed_string'] !== null
+                    ) {
+                        $translation->translate($result['fixed_string']);
+                    }
+
+                    // Only check glossary for French
+                    $warnings = array_merge(
+                        $this->glossaryCheck(
+                            $translation->getOriginal(),
+                            $translated
+                        ),
+                        $warnings
+                    );
+                }
             }
         }
 
@@ -302,7 +310,7 @@ class FrenchGuidelinesChecker
     }
 
     public const SYSTEM_PROMPT = <<<PROMPT
-        Translate the following English text to French, maintaining the original tone and formatting.
+        Translate the following English text to {{TARGET_LANGUAGE}}, maintaining the original tone and formatting.
         Focus on accuracy and cultural context. Don't add or remove any information.
         It is very important to not write explanations. Do not echo my prompt. Do not remind me what I asked you for. Do not apologize. Do not self-reference. Do not use generic filler phrases. Get to the point precisely and accurately. Don't add or remove any information. Do not explain what and why, just give me your best possible result.
         PROMPT;
@@ -311,33 +319,90 @@ class FrenchGuidelinesChecker
         PROMPT;
 
     /**
-     * Translates a string from English to French using the configured AI service
+     * Detect language code from filename
+     *
+     * @param string $filename The filename to analyze
+     * @return string|null The detected language code or null
+     */
+    public function detectLanguageFromFilename(string $filename): ?string
+    {
+        // Pattern: xxx-fr.po, xxx-fr_FR.po, xxx-de_DE.po, etc.
+        if (
+            preg_match(
+                '/[-_](([a-z]{2})(_[A-Z]{2})?)\.po$/',
+                $filename,
+                $matches
+            )
+        ) {
+            return strtolower($matches[2]); // Return 'fr', 'de', 'es', etc.
+        }
+        return null;
+    }
+
+    /**
+     * Get language name from language code
+     *
+     * @param string $langCode The language code
+     * @return string The language name
+     */
+    public function getLanguageName(string $langCode): string
+    {
+        $languages = [
+            'fr' => 'French',
+            'de' => 'German',
+            'es' => 'Spanish',
+            'it' => 'Italian',
+            'pt' => 'Portuguese',
+            'nl' => 'Dutch',
+            'ar' => 'Arabic',
+        ];
+
+        return $languages[$langCode] ?? 'Unknown';
+    }
+
+    /**
+     * Translates a string from English to the target language using the configured AI service
      * while respecting glossary terms
      *
      * @param string $original The original English text to translate
+     * @param string $targetLang The target language code (default: 'fr')
      * @return array{string|null, string|null}|null An array containing the translated text and a comment
      *               indicating if the translation was fuzzy or not
      *               (null if no translation was made)
      *               (null if no comment was made)
      */
-    public function translate(string $original): array|null
-    {
+    public function translate(
+        string $original,
+        string $targetLang = 'fr'
+    ): array|null {
         if (!$this->ai) {
             return null;
         }
 
-        // Extract relevant glossary terms
+        // Extract relevant glossary terms (only for French)
         $relevantTerms = [];
-        foreach ($this->glossary as $term => $preferred_terms) {
-            if (
-                preg_match("/\b" . preg_quote($term, '/') . "\b/i", $original)
-            ) {
-                $relevantTerms[$term] = $preferred_terms;
+        if ($targetLang === 'fr') {
+            foreach ($this->glossary as $term => $preferred_terms) {
+                if (
+                    preg_match(
+                        "/\b" . preg_quote($term, '/') . "\b/i",
+                        $original
+                    )
+                ) {
+                    $relevantTerms[$term] = $preferred_terms;
+                }
             }
         }
-        $systemPrompt = self::SYSTEM_PROMPT;
 
-        // Build the prompt with glossary terms
+        // Get language name and build system prompt
+        $langName = $this->getLanguageName($targetLang);
+        $systemPrompt = str_replace(
+            '{{TARGET_LANGUAGE}}',
+            $langName,
+            self::SYSTEM_PROMPT
+        );
+
+        // Build the prompt with glossary terms (only for French)
         if (!empty($relevantTerms)) {
             $systemPrompt .=
                 "\n" . self::SYSTEM_PROMPT_INTRODUCE_GLOSSARY . "\n";

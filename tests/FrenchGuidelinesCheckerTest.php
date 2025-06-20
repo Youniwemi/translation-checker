@@ -318,13 +318,10 @@ class FrenchGuidelinesCheckerTest extends TestCase
         $checker->setInteractive(true);
 
         // Set up the promptUser mock to return accepted translation
-        $checker->expects($this->once())
+        $checker
+            ->expects($this->once())
             ->method('promptUser')
-            ->with(
-                'Hello world',
-                'Bonjour le monde',
-                []
-            )
+            ->with('Hello world', 'Bonjour le monde', [])
             ->willReturn(['Bonjour le monde', null]);
 
         $result = $checker->translate('Hello world');
@@ -334,7 +331,6 @@ class FrenchGuidelinesCheckerTest extends TestCase
         } else {
             $this->fail('Translation result should not be null');
         }
-
     }
 
     public function testInteractiveTranslationWithReview(): void
@@ -364,13 +360,10 @@ class FrenchGuidelinesCheckerTest extends TestCase
         $checker->setInteractive(true);
 
         // Set up the promptUser mock to return translation with fuzzy flag
-        $checker->expects($this->once())
+        $checker
+            ->expects($this->once())
             ->method('promptUser')
-            ->with(
-                'Hello world',
-                'Bonjour le monde',
-                []
-            )
+            ->with('Hello world', 'Bonjour le monde', [])
             ->willReturn(['Bonjour le monde', 'fuzzy']);
 
         $result = $checker->translate('Hello world');
@@ -409,13 +402,10 @@ class FrenchGuidelinesCheckerTest extends TestCase
         $checker->setInteractive(true);
 
         // Set up the promptUser mock to return stop flag
-        $checker->expects($this->once())
+        $checker
+            ->expects($this->once())
             ->method('promptUser')
-            ->with(
-                'Hello world',
-                'Bonjour le monde',
-                []
-            )
+            ->with('Hello world', 'Bonjour le monde', [])
             ->willReturn([null, 'stop']);
 
         $result = $checker->translate('Hello world');
@@ -425,6 +415,102 @@ class FrenchGuidelinesCheckerTest extends TestCase
         } else {
             $this->fail('Translation result should not be null');
         }
+    }
 
+    public function testDetectLanguageFromFilename(): void
+    {
+        $this->assertEquals(
+            'fr',
+            $this->checker->detectLanguageFromFilename('plugin-fr.po')
+        );
+        $this->assertEquals(
+            'fr',
+            $this->checker->detectLanguageFromFilename('plugin-fr_FR.po')
+        );
+        $this->assertEquals(
+            'de',
+            $this->checker->detectLanguageFromFilename('plugin-de.po')
+        );
+        $this->assertEquals(
+            'de',
+            $this->checker->detectLanguageFromFilename('plugin-de_DE.po')
+        );
+        $this->assertEquals(
+            'es',
+            $this->checker->detectLanguageFromFilename('plugin-es_ES.po')
+        );
+        $this->assertEquals(
+            'it',
+            $this->checker->detectLanguageFromFilename('plugin-it_IT.po')
+        );
+        $this->assertNull(
+            $this->checker->detectLanguageFromFilename('plugin.po')
+        );
+        $this->assertNull(
+            $this->checker->detectLanguageFromFilename('readme.txt')
+        );
+    }
+
+    public function testGetLanguageName(): void
+    {
+        $this->assertEquals('French', $this->checker->getLanguageName('fr'));
+        $this->assertEquals('German', $this->checker->getLanguageName('de'));
+        $this->assertEquals('Spanish', $this->checker->getLanguageName('es'));
+        $this->assertEquals('Italian', $this->checker->getLanguageName('it'));
+        $this->assertEquals(
+            'Portuguese',
+            $this->checker->getLanguageName('pt')
+        );
+        $this->assertEquals('Dutch', $this->checker->getLanguageName('nl'));
+        $this->assertEquals('Arabic', $this->checker->getLanguageName('ar'));
+        $this->assertEquals('Unknown', $this->checker->getLanguageName(''));
+    }
+
+    public function testTranslateToGerman(): void
+    {
+        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
+        $openai
+            ->expects($this->once())
+            ->method('chat')
+            ->with(
+                $this->callback(function ($params) {
+                    // Verify German is in the prompt
+                    return isset($params['messages'][0]['content']) &&
+                        str_contains(
+                            $params['messages'][0]['content'],
+                            'German'
+                        );
+                })
+            )
+            ->willReturn(
+                json_encode([
+                    'choices' => [
+                        [
+                            'message' => [
+                                'content' => 'Hallo Welt',
+                            ],
+                        ],
+                    ],
+                ])
+            );
+
+        $checker = new FrenchGuidelinesChecker($openai, 'gpt-3.5-turbo');
+        $result = $checker->translate('Hello world', 'de');
+
+        $this->assertNotNull($result);
+        $this->assertEquals('Hallo Welt', $result[0]);
+        $this->assertNull($result[1]);
+    }
+
+    public function testSkipTypographyForGerman(): void
+    {
+        $po = <<<PO
+            msgid "Hello!"
+            msgstr "Hallo!"
+            PO;
+
+        $result = $this->checker->check($po, false, false, 'de');
+        $this->assertCount(0, $result['errors']); // No typography errors for German
+        $this->assertCount(0, $result['warnings']); // No glossary warnings for German
     }
 }

@@ -2,19 +2,21 @@
 <?php
 declare(strict_types=1);
 
-if (file_exists(__DIR__ . "/../vendor/autoload.php")) {
+if (!isset($_composer_autoload_path)) {
     require __DIR__ . "/../vendor/autoload.php";
-} elseif (file_exists(__DIR__ . "/../../../autoload.php")) {
-    require __DIR__ . "/../../../autoload.php";
-} else {
-    fwrite(STDERR, "Dependencies not found. Run: composer install" . PHP_EOL);
-    exit(1);
 }
 
 use Orhanerday\OpenAi\OpenAi;
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
 
-$options = getopt("", ["help", "fix", "quiet", "translate", "no-warnings", "interactive"]);
+$options = getopt("", [
+    "help",
+    "fix",
+    "quiet",
+    "translate",
+    "no-warnings",
+    "interactive",
+]);
 $args = array_values(
     array_filter($argv, fn($arg) => !str_starts_with($arg, "-"))
 );
@@ -23,7 +25,15 @@ array_shift($args); // Remove script name
 if (isset($options["help"]) || empty($args)) {
     echo <<<HELP
 Usage: check-french [--fix] [--quiet] [--translate] [--no-warnings] [--interactive] <file.po> [<file2.po> ...]
-Check and optionally fix French typography in PO files and translates new strings if not translated yet
+Check typography and translate PO files. Language is auto-detected from filename (e.g., plugin-de.po → German)
+
+Supported Languages:
+  French (fr)     - Full typography checking + translation
+  German (de)     - Translation only
+  Spanish (es)    - Translation only
+  Italian (it)    - Translation only
+  Portuguese (pt) - Translation only
+  Dutch (nl)      - Translation only
 
 Options:
   --fix         Fix the issues and save changes back to the file
@@ -34,39 +44,40 @@ Options:
   --help        Show this help message
 
 Examples:
-  check-french fr.po
-  check-french --fix --translate --interactive fr.po en.po
-  check-french --quiet --fix *.po
+  check-french plugin-fr.po                                      # Check French typography
+  check-french --fix --translate plugin-de.po                    # Translate to German
+  check-french --fix --translate --interactive plugin-es.po      # Interactive Spanish translation
+  check-french --quiet --fix *.po                                # Process all PO files
 
 HELP;
     exit(0);
 }
 
-
-
 $translate = isset($options["translate"]);
 
 if ($translate) {
-    $apiKey = getenv('OPENAI_API_KEY');
-    $apiUrl = getenv('OPENAI_API_URL');
-    $model = getenv('OPENAI_MODEL') ?: 'gpt-3.5-turbo';
-    if (empty( $apiKey) && empty($apiUrl)) {
-        fwrite(STDERR, "Error: OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables are not set. Please set them before running the script.". PHP_EOL);
+    $apiKey = getenv("OPENAI_API_KEY");
+    $apiUrl = getenv("OPENAI_API_URL");
+    $model = getenv("OPENAI_MODEL") ?: "gpt-3.5-turbo";
+    if (empty($apiKey) && empty($apiUrl)) {
+        fwrite(
+            STDERR,
+            "Error: OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables are not set. Please set them before running the script." .
+                PHP_EOL
+        );
         exit(1);
     }
     $ai = new OpenAi($apiKey);
-    if($apiUrl){
+    if ($apiUrl) {
         $ai->setBaseURL($apiUrl);
-    } 
-    $checker = new FrenchGuidelinesChecker($ai, $model);  
+    }
+    $checker = new FrenchGuidelinesChecker($ai, $model);
     if (isset($options["interactive"])) {
         $checker->setInteractive(true);
     }
 } else {
-    $checker = new FrenchGuidelinesChecker(); 
+    $checker = new FrenchGuidelinesChecker();
 }
-
-
 
 $hasErrors = false;
 $quiet = isset($options["quiet"]);
@@ -91,11 +102,15 @@ foreach ($args as $file) {
     }
 
     try {
+        // Detect language from filename
+        $targetLang = $checker->detectLanguageFromFilename($file) ?? 'fr';
+        
         $content = file_get_contents($file);
-        $result = $checker->check($content, isset($options["fix"]) , $translate);
+        $result = $checker->check($content, isset($options["fix"]), $translate, $targetLang);
 
         if (!$quiet) {
-            echo "Checking $file..." . PHP_EOL;
+            $langName = $checker->getLanguageName($targetLang);
+            echo "Checking $file (Language: $langName)..." . PHP_EOL;
         }
 
         $hasIssues = false;

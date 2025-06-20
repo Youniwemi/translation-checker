@@ -12,7 +12,12 @@ This package will also allow to translate missing translations using any AI prov
 
 ## Features
 
-### Typography Rules
+### Multi-Language Support
+- **Language Auto-Detection**: Automatically detects target language from filename (e.g., `plugin-de.po` → German)
+- **French**: Full typography checking + AI translation
+- **German, Spanish, Italian, Portuguese, Dutch, Arabic**: AI translation only (no typography rules)
+
+### Typography Rules (French Only)
 - Non-breaking spaces before double punctuation (!, ?, :, ;, »)
 - French quotation marks (« ») with proper spacing
 - Typographic apostrophes (')
@@ -20,8 +25,9 @@ This package will also allow to translate missing translations using any AI prov
 
 ### Translation Features
 - PO file parsing and generation
-- Translation consistency checking via glossary
+- Translation consistency checking via glossary (French only)
 - Interactive (or not) translation mode with OpenAI API integration (compatible with OpenAI, OpenRouter, Ollama, Deepseek, etc.)
+- Supports multiple target languages based on filename detection
 
 
 ## French Typography Reference
@@ -38,30 +44,37 @@ composer require youniwemi/translation-checker
 
 ### Command Line
 
-Check a file:
+Check a French file (typography + potential translation):
 ```bash
-vendor/bin/check-french fr.po
+vendor/bin/check-french plugin-fr.po
 ```
 
-Check and fix issues:
+Check and fix French typography issues:
 ```bash
-vendor/bin/check-french --fix fr.po
+vendor/bin/check-french --fix plugin-fr.po
 ```
 
-Process multiple files:
+Translate missing translations to German:
+```bash
+vendor/bin/check-french --fix --translate plugin-de.po
+```
+
+Interactive Spanish translation:
+```bash
+vendor/bin/check-french --fix --translate --interactive plugin-es.po
+```
+
+Process multiple files (auto-detects language from each filename):
 ```bash
 vendor/bin/check-french --fix *.po
 ```
 
-Translate missing translations:
-```bash
-vendor/bin/check-french --fix --translate fr.po
-```
-
-Translate missing translations in interactive mode:
-```bash
-vendor/bin/check-french --fix --translate --interactive fr.po
-```
+**Language Detection Examples:**
+- `plugin-fr.po` → French (typography checking + translation)
+- `plugin-de.po` → German (translation only)
+- `plugin-es_ES.po` → Spanish (translation only)
+- `plugin-it_IT.po` → Italian (translation only)
+- `plugin.po` → French (default, typography checking + translation)
 
 Options:
 - `--fix` Fix issues and save changes
@@ -130,3 +143,7 @@ When using the `--translate` option, the following environment variables are req
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `OPENAI_API_URL`: OpenAI API URL (optional, for custom endpoints, OpenRouter, Ollama, Deepseek, etc.)
 - `OPENAI_MODEL`: Model to use (defaults to 'gpt-3.5-turbo')
+
+### Example using Ollama
+```bash
+export OPENAI_API_KEY=your-ollama-api-key   
