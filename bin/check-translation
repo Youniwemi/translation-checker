@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 if (!isset($_composer_autoload_path)) {
     require __DIR__ . "/../vendor/autoload.php";
+} else {
+    require $_composer_autoload_path;
 }
 
 use Orhanerday\OpenAi\OpenAi;
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
+use Youniwemi\TranslationChecker\Translator;
 
 $options = getopt("", [
     "help",
@@ -24,7 +27,7 @@ array_shift($args); // Remove script name
 
 if (isset($options["help"]) || empty($args)) {
     echo <<<HELP
-Usage: check-french [--fix] [--quiet] [--translate] [--no-warnings] [--interactive] <file.po> [<file2.po> ...]
+Usage: check-translation [--fix] [--quiet] [--translate] [--no-warnings] [--interactive] <file.po> [<file2.po> ...]
 Check typography and translate PO files. Language is auto-detected from filename (e.g., plugin-de.po → German)
 
 Supported Languages:
@@ -44,10 +47,10 @@ Options:
   --help        Show this help message
 
 Examples:
-  check-french plugin-fr.po                                      # Check French typography
-  check-french --fix --translate plugin-de.po                    # Translate to German
-  check-french --fix --translate --interactive plugin-es.po      # Interactive Spanish translation
-  check-french --quiet --fix *.po                                # Process all PO files
+  check-translation plugin-fr.po                                      # Check French typography
+  check-translation --fix --translate plugin-de.po                    # Translate to German
+  check-translation --fix --translate --interactive plugin-es.po      # Interactive Spanish translation
+  check-translation --quiet --fix *.po                                # Process all PO files
 
 HELP;
     exit(0);
@@ -71,10 +74,21 @@ if ($translate) {
     if ($apiUrl) {
         $ai->setBaseURL($apiUrl);
     }
-    $checker = new FrenchGuidelinesChecker($ai, $model);
-    if (isset($options["interactive"])) {
-        $checker->setInteractive(true);
+    $translator = new Translator($ai, $model, isset($options["interactive"]));
+
+    // Verify API credentials by attempting to retrieve the model
+    $verification = $translator->verifyApiCredentials();
+    if (!$verification["success"]) {
+        fwrite(
+            STDERR,
+            "Error: API verification failed - " .
+                $verification["error"] .
+                PHP_EOL
+        );
+        exit(1);
     }
+
+    $checker = new FrenchGuidelinesChecker($translator);
 } else {
     $checker = new FrenchGuidelinesChecker();
 }
@@ -103,10 +117,15 @@ foreach ($args as $file) {
 
     try {
         // Detect language from filename
-        $targetLang = $checker->detectLanguageFromFilename($file) ?? 'fr';
-        
+        $targetLang = $checker->detectLanguageFromFilename($file) ?? "fr";
+
         $content = file_get_contents($file);
-        $result = $checker->check($content, isset($options["fix"]), $translate, $targetLang);
+        $result = $checker->check(
+            $content,
+            isset($options["fix"]),
+            $translate,
+            $targetLang
+        );
 
         if (!$quiet) {
             $langName = $checker->getLanguageName($targetLang);

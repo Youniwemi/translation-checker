@@ -46,27 +46,27 @@ composer require youniwemi/translation-checker
 
 Check a French file (typography + potential translation):
 ```bash
-vendor/bin/check-french plugin-fr.po
+vendor/bin/check-translation plugin-fr.po
 ```
 
 Check and fix French typography issues:
 ```bash
-vendor/bin/check-french --fix plugin-fr.po
+vendor/bin/check-translation --fix plugin-fr.po
 ```
 
 Translate missing translations to German:
 ```bash
-vendor/bin/check-french --fix --translate plugin-de.po
+vendor/bin/check-translation --fix --translate plugin-de.po
 ```
 
 Interactive Spanish translation:
 ```bash
-vendor/bin/check-french --fix --translate --interactive plugin-es.po
+vendor/bin/check-translation --fix --translate --interactive plugin-es.po
 ```
 
 Process multiple files (auto-detects language from each filename):
 ```bash
-vendor/bin/check-french --fix *.po
+vendor/bin/check-translation --fix *.po
 ```
 
 **Language Detection Examples:**
@@ -146,4 +146,10 @@ When using the `--translate` option, the following environment variables are req
 
 ### Example using Ollama
 ```bash
-export OPENAI_API_KEY=your-ollama-api-key   
+OPENAI_API_URL=http://localhost:11434 OPENAI_MODEL=llama3 check-translation --translate plugin-de.po
+```
+
+### Example using ChatGPT
+```bash
+OPENAI_API_KEY=http://localhost:11434 OPENAI_MODEL=gpt-4.1 check-translation --translate plugin-de.po
+```

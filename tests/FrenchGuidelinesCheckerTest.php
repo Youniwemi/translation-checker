@@ -6,6 +6,7 @@ namespace Youniwemi\TranslationCheckerTests;
 
 use PHPUnit\Framework\TestCase;
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
+use Youniwemi\TranslationChecker\Translator;
 
 class FrenchGuidelinesCheckerTest extends TestCase
 {
@@ -222,10 +223,14 @@ class FrenchGuidelinesCheckerTest extends TestCase
                     ],
                 ])
             );
+        $translation = new Translator($openai, 'mymodel');
+        $checker = new FrenchGuidelinesChecker($translation);
 
-        $checker = new FrenchGuidelinesChecker($openai, 'mymodel');
-
-        $result = $checker->translate('Please archive your documents');
+        $result = $checker->translate(
+            'Please archive your documents',
+            'fr',
+            $checker->loadGlossary('fr')
+        );
         if ($result) {
             $this->assertEquals('Veuillez archiver vos documents', $result[0]);
             // no Flags
@@ -283,137 +288,14 @@ class FrenchGuidelinesCheckerTest extends TestCase
         int $count,
         ?string $message = null
     ): void {
-        $warnings = $this->checker->glossaryCheck($term, $translation);
+        $warnings = $this->checker->glossaryCheck(
+            $term,
+            $translation,
+            FrenchGuidelinesChecker::loadGlossary('fr')
+        );
         $this->assertCount($count, $warnings);
         if ($message) {
             $this->assertStringContainsString($message, $warnings[0]);
-        }
-    }
-
-    public function testInteractiveTranslation(): void
-    {
-        // Mock OpenAI client
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
-            ->expects($this->once())
-            ->method('chat')
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Bonjour le monde',
-                            ],
-                        ],
-                    ],
-                ])
-            );
-
-        // Create a partial mock of FrenchGuidelinesChecker to mock promptUser
-        $checker = $this->getMockBuilder(FrenchGuidelinesChecker::class)
-            ->setConstructorArgs([$openai, 'mymodel'])
-            ->onlyMethods(['promptUser'])
-            ->getMock();
-
-        $checker->setInteractive(true);
-
-        // Set up the promptUser mock to return accepted translation
-        $checker
-            ->expects($this->once())
-            ->method('promptUser')
-            ->with('Hello world', 'Bonjour le monde', [])
-            ->willReturn(['Bonjour le monde', null]);
-
-        $result = $checker->translate('Hello world');
-        if ($result) {
-            $this->assertEquals('Bonjour le monde', $result[0]);
-            $this->assertNull($result[1]); // No flags for accepted translation
-        } else {
-            $this->fail('Translation result should not be null');
-        }
-    }
-
-    public function testInteractiveTranslationWithReview(): void
-    {
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
-            ->expects($this->once())
-            ->method('chat')
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Bonjour le monde',
-                            ],
-                        ],
-                    ],
-                ])
-            );
-
-        // Create a partial mock of FrenchGuidelinesChecker
-        $checker = $this->getMockBuilder(FrenchGuidelinesChecker::class)
-            ->setConstructorArgs([$openai, 'mymodel'])
-            ->onlyMethods(['promptUser'])
-            ->getMock();
-
-        $checker->setInteractive(true);
-
-        // Set up the promptUser mock to return translation with fuzzy flag
-        $checker
-            ->expects($this->once())
-            ->method('promptUser')
-            ->with('Hello world', 'Bonjour le monde', [])
-            ->willReturn(['Bonjour le monde', 'fuzzy']);
-
-        $result = $checker->translate('Hello world');
-        if ($result) {
-            $this->assertEquals('Bonjour le monde', $result[0]);
-            $this->assertEquals('fuzzy', $result[1]);
-        } else {
-            $this->fail('Translation result should not be null');
-        }
-    }
-
-    public function testInteractiveTranslationWithStop(): void
-    {
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
-            ->expects($this->once())
-            ->method('chat')
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Bonjour le monde',
-                            ],
-                        ],
-                    ],
-                ])
-            );
-
-        // Create a partial mock of FrenchGuidelinesChecker
-        $checker = $this->getMockBuilder(FrenchGuidelinesChecker::class)
-            ->setConstructorArgs([$openai, 'mymodel'])
-            ->onlyMethods(['promptUser'])
-            ->getMock();
-
-        $checker->setInteractive(true);
-
-        // Set up the promptUser mock to return stop flag
-        $checker
-            ->expects($this->once())
-            ->method('promptUser')
-            ->with('Hello world', 'Bonjour le monde', [])
-            ->willReturn([null, 'stop']);
-
-        $result = $checker->translate('Hello world');
-        if ($result) {
-            $this->assertNull($result[0]);
-            $this->assertEquals('stop', $result[1]);
-        } else {
-            $this->fail('Translation result should not be null');
         }
     }
 
@@ -453,17 +335,14 @@ class FrenchGuidelinesCheckerTest extends TestCase
 
     public function testGetLanguageName(): void
     {
-        $this->assertEquals('French', $this->checker->getLanguageName('fr'));
-        $this->assertEquals('German', $this->checker->getLanguageName('de'));
-        $this->assertEquals('Spanish', $this->checker->getLanguageName('es'));
-        $this->assertEquals('Italian', $this->checker->getLanguageName('it'));
-        $this->assertEquals(
-            'Portuguese',
-            $this->checker->getLanguageName('pt')
-        );
-        $this->assertEquals('Dutch', $this->checker->getLanguageName('nl'));
-        $this->assertEquals('Arabic', $this->checker->getLanguageName('ar'));
-        $this->assertEquals('Unknown', $this->checker->getLanguageName(''));
+        $this->assertEquals('French', Translator::getLanguageName('fr'));
+        $this->assertEquals('German', Translator::getLanguageName('de'));
+        $this->assertEquals('Spanish', Translator::getLanguageName('es'));
+        $this->assertEquals('Italian', Translator::getLanguageName('it'));
+        $this->assertEquals('Portuguese', Translator::getLanguageName('pt'));
+        $this->assertEquals('Dutch', Translator::getLanguageName('nl'));
+        $this->assertEquals('Arabic', Translator::getLanguageName('ar'));
+        $this->assertEquals('Unknown', Translator::getLanguageName(''));
     }
 
     public function testTranslateToGerman(): void
@@ -493,8 +372,8 @@ class FrenchGuidelinesCheckerTest extends TestCase
                     ],
                 ])
             );
-
-        $checker = new FrenchGuidelinesChecker($openai, 'gpt-3.5-turbo');
+        $translator = new Translator($openai, 'gpt-3.5-turbo');
+        $checker = new FrenchGuidelinesChecker($translator);
         $result = $checker->translate('Hello world', 'de');
 
         $this->assertNotNull($result);
