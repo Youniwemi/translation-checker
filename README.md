@@ -82,7 +82,6 @@ Options:
 - `--no-warnings` Only show errors (ignore warnings)
 - `--translate` Translate the missing translations
 - `--interactive` Use interactive mode for translation
-- `--glossary` Path to the glossary file (defaults to 'glossary.json')
 - `--help` Show help message
 
 ## Messages
@@ -151,5 +150,5 @@ OPENAI_API_URL=http://localhost:11434 OPENAI_MODEL=llama3 check-translation --tr
 
 ### Example using ChatGPT
 ```bash
-OPENAI_API_KEY=http://localhost:11434 OPENAI_MODEL=gpt-4.1 check-translation --translate plugin-de.po
+OPENAI_API_KEY=your-api-key-here OPENAI_MODEL=gpt-4 check-translation --translate plugin-de.po
 ```
