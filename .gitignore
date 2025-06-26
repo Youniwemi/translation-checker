@@ -17,6 +17,7 @@
 *.mo
 *.po.bak
 
-.claude
+.claude/commands
+.claude/templates
 feature
 CLAUDE.md
