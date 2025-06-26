@@ -9,7 +9,7 @@ use Gettext\Loader\PoLoader;
 
 class FrenchGuidelinesChecker
 {
-    private const NBSP = "\u{00A0}";
+    protected const NBSP = "\u{00A0}";
     private const ELLIPSIS = '…';
     private const DOUBLE_PUNCTUATION = ['!', '?', ':', ';', '»'];
 
