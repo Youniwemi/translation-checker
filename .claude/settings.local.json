@@ -1,0 +1,10 @@
+{
+    "permissions": {
+        "allow": [
+            "Bash(composer test:*)",
+            "Bash(composer cs:*)",
+            "Bash(composer stan:*)"
+        ],
+        "deny": []
+    }
+}
