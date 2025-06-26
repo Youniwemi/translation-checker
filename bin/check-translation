@@ -128,7 +128,7 @@ foreach ($args as $file) {
         );
 
         if (!$quiet) {
-            $langName = $checker->getLanguageName($targetLang);
+            $langName = Translator::getLanguageName($targetLang);
             echo "Checking $file (Language: $langName)..." . PHP_EOL;
         }
 
