@@ -16,3 +16,7 @@
 *.po
 *.mo
 *.po.bak
+
+.claude
+feature
+CLAUDE.md

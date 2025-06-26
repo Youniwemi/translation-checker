@@ -105,14 +105,19 @@ class FrenchGuidelinesChecker
                     }
 
                     // Only check glossary for French
-                    $warnings = array_merge(
-                        $this->glossaryCheck(
-                            $translation->getOriginal(),
-                            $translated,
-                            $glossaryTerms
-                        ),
-                        $warnings
+                    $glossaryResult = $this->glossaryCheck(
+                        $translation->getOriginal(),
+                        $translated,
+                        $glossaryTerms
                     );
+                    $warnings = array_merge($glossaryResult['warnings'], $warnings);
+
+                    // Add glossary review comments when fixing
+                    if ($and_fix && !empty($glossaryResult['comments'])) {
+                        foreach ($glossaryResult['comments'] as $comment) {
+                            $translation->getComments()->add($comment);
+                        }
+                    }
                 }
             }
         }
@@ -198,8 +203,7 @@ class FrenchGuidelinesChecker
      * @param string $original The original English text
      * @param string $translated The translated French text
      * @param array<string, array<string>> $glossaryTerms The glossary terms
-     * @return array<string> An array of warnings if any glossary terms are not
-     *                      translated correctly
+     * @return array{warnings: array<string>, comments: array<string>} An array containing warnings and comments
      */
     public function glossaryCheck(
         string $original,
@@ -207,6 +211,8 @@ class FrenchGuidelinesChecker
         array $glossaryTerms = []
     ): array {
         $warnings = [];
+        $comments = [];
+
         foreach ($glossaryTerms as $term => $preferred_terms) {
             // bail if not found
             if (
@@ -228,8 +234,11 @@ class FrenchGuidelinesChecker
                 "Le terme '$term' devrait être traduit par '" .
                 implode(' ou ', $preferred_terms) .
                 "' : $translated";
+
+            $comments[] = "glossary-review: '$term' → '" . implode(' ou ', $preferred_terms) . "'";
         }
-        return $warnings;
+
+        return ['warnings' => $warnings, 'comments' => $comments];
     }
 
     public const SYSTEM_PROMPT = <<<PROMPT

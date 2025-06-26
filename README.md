@@ -97,6 +97,17 @@ Options:
 ### Warnings (Suggestions)
 - "Le terme 'x' devrait être traduit par 'y'" - Suggests using consistent terminology from glossary
 
+### Glossary Review Comments
+When using the `--fix` option, glossary violations are automatically marked with review comments in the PO file:
+
+```po
+# glossary-review: 'submission' → 'entrée ou envoi'
+msgid "Please submit your form"
+msgstr "Veuillez soumettre votre formulaire"
+```
+
+These comments help translators identify and fix terminology inconsistencies directly in their PO editors.
+
 ## Development
 
 ```bash

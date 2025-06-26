@@ -265,14 +265,14 @@ class FrenchGuidelinesCheckerTest extends TestCase
                 'archive',
                 'Compress',
                 1,
-                "Le terme 'archive' devrait être traduit par 'archive ou archiver'",
+                "Le terme 'archive' devrait être traduit par 'archive ou archiver' : Compress",
             ],
             ['set', 'définir', 0],
             [
                 'set up',
                 'définir',
                 1,
-                "Le terme 'set up' devrait être traduit par 'configurer'",
+                "Le terme 'set up' devrait être traduit par 'configurer' : définir",
             ],
             // Should not fail, there is no preset, but only set
             ['preset', 'réglage', 0],
@@ -288,14 +288,14 @@ class FrenchGuidelinesCheckerTest extends TestCase
         int $count,
         ?string $message = null
     ): void {
-        $warnings = $this->checker->glossaryCheck(
+        $result = $this->checker->glossaryCheck(
             $term,
             $translation,
             FrenchGuidelinesChecker::loadGlossary('fr')
         );
-        $this->assertCount($count, $warnings);
+        $this->assertCount($count, $result['warnings']);
         if ($message) {
-            $this->assertStringContainsString($message, $warnings[0]);
+            $this->assertStringContainsString($message, $result['warnings'][0]);
         }
     }
 
@@ -391,5 +391,24 @@ class FrenchGuidelinesCheckerTest extends TestCase
         $result = $this->checker->check($po, false, false, 'de');
         $this->assertCount(0, $result['errors']); // No typography errors for German
         $this->assertCount(0, $result['warnings']); // No glossary warnings for German
+    }
+
+    public function testGlossaryCommentsAddedToTranslations(): void
+    {
+        $po = <<<PO
+            msgid "Please archive your documents"
+            msgstr "Veuillez compresser vos documents"
+            PO;
+
+        $result = $this->checker->check($po, true); // Use fix=true to apply comments
+
+        // Should have a warning
+        $this->assertCount(1, $result['warnings']);
+        $this->assertStringContainsString("Le terme 'archive' devrait être traduit par 'archive ou archiver'", $result['warnings'][0]);
+
+        // Should have added a comment to the fixed content
+        $this->assertNotNull($result['fixed_content']);
+        $this->assertStringContainsString('glossary-review:', $result['fixed_content']);
+        $this->assertStringContainsString("'archive' → 'archive ou archiver'", $result['fixed_content']);
     }
 }
