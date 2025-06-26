@@ -365,7 +365,7 @@ class FrenchGuidelinesCheckerTest extends TestCase
         $this->assertArrayHasKey('fixed_content', $result);
         $this->assertIsString($result['fixed_content']);
         $this->assertStringContainsString(
-            'Le taux de réussite est de 50 %',
+            'Le taux de réussite est de 50' . FrenchGuidelinesChecker::NBSP . '%',
             $result['fixed_content']
         );
     }
