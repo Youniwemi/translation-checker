@@ -19,7 +19,7 @@
 - [x] Point-virgule (;)
 - [x] Deux points (:)
 - [x] Guillemets français fermants (»)
-- [ ] Pourcentage (%)
+- [x] Pourcentage (%)
 - [ ] Unités de mesure (25 km)
 - [ ] Monnaies (25 €)
 - [ ] Signes mathématiques (=, <, >, ~)
