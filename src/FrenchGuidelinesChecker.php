@@ -194,6 +194,12 @@ class FrenchGuidelinesChecker
             $fixed = (string) preg_replace("/etc(\.{2,3}|…)/u", 'etc.', $fixed);
         }
 
+        // Rule: Non-breaking space before percentage sign
+        if (str_contains($text, '%') && !str_contains($text, self::NBSP . '%')) {
+            $errors[] = "Espace insécable avant le signe de pourcentage : $text";
+            $fixed = (string) preg_replace('/\s*%/', self::NBSP . '%', $fixed);
+        }
+
         return ['errors' => $errors, 'fixed_string' => $fixed];
     }
 

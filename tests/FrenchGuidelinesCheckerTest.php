@@ -345,6 +345,31 @@ class FrenchGuidelinesCheckerTest extends TestCase
         $this->assertEquals('Unknown', Translator::getLanguageName(''));
     }
 
+    public function testPercentageSpacing(): void
+    {
+        $po = <<<PO
+            msgid "The success rate is 50%"
+            msgstr "Le taux de réussite est de 50%"
+            PO;
+        $result = $this->checker->check($po);
+
+        $this->assertCount(1, $result['errors']);
+        $this->assertStringContainsString(
+            'Espace insécable avant le signe de pourcentage',
+            $result['errors'][0]
+        );
+
+        $result = $this->checker->check($po, true);
+
+        $this->assertCount(1, $result['errors']);
+        $this->assertArrayHasKey('fixed_content', $result);
+        $this->assertIsString($result['fixed_content']);
+        $this->assertStringContainsString(
+            'Le taux de réussite est de 50 %',
+            $result['fixed_content']
+        );
+    }
+
     public function testTranslateToGerman(): void
     {
         $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
