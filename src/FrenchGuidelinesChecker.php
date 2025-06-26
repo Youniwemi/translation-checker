@@ -9,9 +9,9 @@ use Gettext\Loader\PoLoader;
 
 class FrenchGuidelinesChecker
 {
-    protected const NBSP = "\u{00A0}";
-    private const ELLIPSIS = '…';
-    private const DOUBLE_PUNCTUATION = ['!', '?', ':', ';', '»'];
+    public const NBSP = "\u{00A0}";
+    public const ELLIPSIS = '…';
+    public const DOUBLE_PUNCTUATION = ['!', '?', ':', ';', '»'];
 
     public function __construct(private ?Translator $translator = null)
     {
