@@ -42,9 +42,19 @@ Options:
   --fix         Fix the issues and save changes back to the file
   --quiet       Only show errors and warnings (no progress info)
   --no-warnings Only show errors (ignore warnings)
-  --translate   Translate new strings if not translated yet ( Please SET OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables)
+  --translate   Translate new strings if not translated yet (Requires API key for OpenAI or Claude)
   --interactive Ask for confirmation before applying each translation
   --help        Show this help message
+
+Translation API Configuration:
+  Claude (preferred):
+    - ANTHROPIC_API_KEY: Your Anthropic API key
+    - CLAUDE_MODEL: Model name (optional, defaults to claude-3-haiku-20240307)
+  
+  OpenAI (fallback):
+    - OPENAI_API_KEY: Your OpenAI API key
+    - OPENAI_MODEL: Model name (optional, defaults to gpt-3.5-turbo)
+    - OPENAI_API_URL: Custom API URL (optional)
 
 Examples:
   check-translation plugin-fr.po                                      # Check French typography
@@ -59,25 +69,51 @@ HELP;
 $translate = isset($options["translate"]);
 
 if ($translate) {
-    $apiKey = getenv("OPENAI_API_KEY");
-    $apiUrl = getenv("OPENAI_API_URL");
-    $model = getenv("OPENAI_MODEL") ?: "gpt-3.5-turbo";
-    if (empty($apiKey) && empty($apiUrl)) {
-        fwrite(
-            STDERR,
-            "Error: OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables are not set. Please set them before running the script." .
-                PHP_EOL
-        );
-        exit(1);
+    $engine = null;
+    
+    // Try Claude first
+    $anthropicApiKey = getenv("ANTHROPIC_API_KEY");
+    if ($anthropicApiKey) {
+        $claudeModel = getenv("CLAUDE_MODEL");
+        try {
+            $engine = TranslationEngine::claude($claudeModel);
+            if (!$quiet) {
+                echo "Using Claude for translation" . PHP_EOL;
+            }
+        } catch (\Exception $e) {
+            if (!$quiet) {
+                echo "Warning: Claude engine creation failed - " . $e->getMessage() . PHP_EOL;
+            }
+        }
     }
-    try {
-        $engine = TranslationEngine::openai($apiKey, $model, $apiUrl);
-    } catch (\Exception $e) {
-        fwrite(
-            STDERR,
-            "Error: Engine creation failed - " . $e->getMessage() . PHP_EOL
-        );
-        exit(1);
+    
+    // Fall back to OpenAI if Claude is not available
+    if (!$engine) {
+        $apiKey = getenv("OPENAI_API_KEY");
+        $apiUrl = getenv("OPENAI_API_URL");
+        $model = getenv("OPENAI_MODEL") ?: "gpt-3.5-turbo";
+        
+        if (empty($apiKey) && empty($apiUrl)) {
+            fwrite(
+                STDERR,
+                "Error: No translation API key found. Please set either ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable." .
+                    PHP_EOL
+            );
+            exit(1);
+        }
+        
+        try {
+            $engine = TranslationEngine::openai($apiKey, $model, $apiUrl);
+            if (!$quiet) {
+                echo "Using OpenAI for translation" . PHP_EOL;
+            }
+        } catch (\Exception $e) {
+            fwrite(
+                STDERR,
+                "Error: OpenAI engine creation failed - " . $e->getMessage() . PHP_EOL
+            );
+            exit(1);
+        }
     }
     
     $translator = new Translator($engine, isset($options["interactive"]));

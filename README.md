@@ -6,7 +6,7 @@ A PHP package for ensuring proper French typography and consistent terminology i
 
 The main idea is to help developers and translators maintain high-quality French translations by enforcing typographic rules and checking for consistency in terminology. The rules of typography are based on the [Les règles typographiques utilisées pour la traduction de WordPress](https://fr.wordpress.org/team/handbook/polyglots/les-regles-typographiques-utilisees-pour-la-traduction-de-wp-en-francais/).
 
-This package will also allow to translate missing translations using any AI provider compatibile with the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.). The transalation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
+This package will also allow to translate missing translations using AI providers including Claude (Anthropic) and any provider compatible with the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.). The translation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
 
 
 
@@ -26,7 +26,7 @@ This package will also allow to translate missing translations using any AI prov
 ### Translation Features
 - PO file parsing and generation
 - Translation consistency checking via glossary (French only)
-- Interactive (or not) translation mode with OpenAI API integration (compatible with OpenAI, OpenRouter, Ollama, Deepseek, etc.)
+- Interactive (or not) translation mode with Claude and OpenAI API integration (supports Claude, OpenAI, OpenRouter, Ollama, Deepseek, etc.)
 - Supports multiple target languages based on filename detection
 
 
@@ -149,17 +149,35 @@ This package uses [gettext/gettext](https://packagist.org/packages/gettext/gette
 
 
 ## Environment Variables for Translation
-When using the `--translate` option, the following environment variables are required:
+When using the `--translate` option, you can use either Claude or OpenAI API:
+
+### Claude (Anthropic) - Preferred
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
+- `CLAUDE_MODEL`: Model to use (optional, defaults to 'claude-3-haiku-20240307')
+
+### OpenAI and compatible APIs
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `OPENAI_API_URL`: OpenAI API URL (optional, for custom endpoints, OpenRouter, Ollama, Deepseek, etc.)
 - `OPENAI_MODEL`: Model to use (defaults to 'gpt-3.5-turbo')
 
-### Example using Ollama
+The system will prefer Claude if `ANTHROPIC_API_KEY` is set, otherwise it will fall back to OpenAI.
+
+### Example using Claude
 ```bash
-OPENAI_API_URL=http://localhost:11434 OPENAI_MODEL=llama3 check-translation --translate plugin-de.po
+ANTHROPIC_API_KEY=your-api-key-here check-translation --translate plugin-de.po
+```
+
+### Example using Claude with specific model
+```bash
+ANTHROPIC_API_KEY=your-api-key-here CLAUDE_MODEL=claude-3-opus-20240229 check-translation --translate plugin-de.po
 ```
 
 ### Example using ChatGPT
 ```bash
 OPENAI_API_KEY=your-api-key-here OPENAI_MODEL=gpt-4 check-translation --translate plugin-de.po
+```
+
+### Example using Ollama
+```bash
+OPENAI_API_URL=http://localhost:11434 OPENAI_MODEL=llama3 check-translation --translate plugin-de.po
 ```

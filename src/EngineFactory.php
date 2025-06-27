@@ -44,6 +44,16 @@ class TranslationEngine
      */
     public static function claude(?string $model = null): TranslationEngineInterface
     {
-        throw new \RuntimeException('ClaudeEngine not implemented yet');
+        $apiKey = getenv('ANTHROPIC_API_KEY');
+        if (!$apiKey) {
+            throw new \RuntimeException('ANTHROPIC_API_KEY environment variable is not set');
+        }
+
+        $engine = new ClaudeEngine($apiKey, $model ?? 'claude-3-haiku-20240307');
+
+        // Verify engine before returning
+        $engine->verifyEngine();
+
+        return $engine;
     }
 }
