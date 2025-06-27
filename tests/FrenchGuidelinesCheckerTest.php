@@ -194,36 +194,18 @@ class FrenchGuidelinesCheckerTest extends TestCase
 
     public function testTranslateEmptyStringWithGlossary(): void
     {
-        // Mock OpenAI client
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
+        // Mock translation engine
+        $engine = $this->createMock(\Youniwemi\TranslationChecker\TranslationEngineInterface::class);
+        $engine
             ->expects($this->once())
-            ->method('chat')
+            ->method('translate')
             ->with(
-                $this->callback(function ($params) {
-                    // Verify that glossary terms are included in the prompt
-                    return isset($params['model']) &&
-                        $params['model'] === 'mymodel' &&
-                        isset($params['messages']) &&
-                        is_array($params['messages']) &&
-                        str_contains(
-                            $params['messages'][0]['content'],
-                            'archive -> archive or archiver'
-                        );
-                })
+                'Please archive your documents',
+                $this->stringContains('archive -> archive or archiver')
             )
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Veuillez archiver vos documents',
-                            ],
-                        ],
-                    ],
-                ])
-            );
-        $translation = new Translator($openai, 'mymodel');
+            ->willReturn('Veuillez archiver vos documents');
+
+        $translation = new Translator($engine);
         $checker = new FrenchGuidelinesChecker($translation);
 
         $result = $checker->translate(
@@ -231,11 +213,10 @@ class FrenchGuidelinesCheckerTest extends TestCase
             'fr',
             $checker->loadGlossary('fr')
         );
-        if ($result) {
-            $this->assertEquals('Veuillez archiver vos documents', $result[0]);
-            // no Flags
-            $this->assertEquals(null, $result[1]);
-        }
+
+        $this->assertNotNull($result);
+        $this->assertEquals('Veuillez archiver vos documents', $result[0]);
+        $this->assertNull($result[1]);
     }
 
     public function testTranslateWithNoConfiguration(): void
@@ -372,32 +353,17 @@ class FrenchGuidelinesCheckerTest extends TestCase
 
     public function testTranslateToGerman(): void
     {
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
+        $engine = $this->createMock(\Youniwemi\TranslationChecker\TranslationEngineInterface::class);
+        $engine
             ->expects($this->once())
-            ->method('chat')
+            ->method('translate')
             ->with(
-                $this->callback(function ($params) {
-                    // Verify German is in the prompt
-                    return isset($params['messages'][0]['content']) &&
-                        str_contains(
-                            $params['messages'][0]['content'],
-                            'German'
-                        );
-                })
+                'Hello world',
+                $this->stringContains('German')
             )
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Hallo Welt',
-                            ],
-                        ],
-                    ],
-                ])
-            );
-        $translator = new Translator($openai, 'gpt-3.5-turbo');
+            ->willReturn('Hallo Welt');
+
+        $translator = new Translator($engine);
         $checker = new FrenchGuidelinesChecker($translator);
         $result = $checker->translate('Hello world', 'de');
 

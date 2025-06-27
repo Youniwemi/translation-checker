@@ -1,10 +1,11 @@
 {
-    "permissions": {
-        "allow": [
-            "Bash(composer test:*)",
-            "Bash(composer cs:*)",
-            "Bash(composer stan:*)"
-        ],
-        "deny": []
-    }
+  "permissions": {
+    "allow": [
+      "Bash(composer test:*)",
+      "Bash(composer cs:*)",
+      "Bash(composer stan:*)",
+      "Bash(composer qa:*)"
+    ],
+    "deny": []
+  }
 }

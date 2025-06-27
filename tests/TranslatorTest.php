@@ -6,54 +6,50 @@ namespace Youniwemi\TranslationCheckerTests;
 
 use PHPUnit\Framework\TestCase;
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
+use Youniwemi\TranslationChecker\TranslationEngineInterface;
 use Youniwemi\TranslationChecker\Translator;
 
 class TranslatorTest extends TestCase
 {
-    public function testTranslateEmptyStringWithGlossary(): void
-    {
-        // Mock OpenAI client
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
-            ->expects($this->once())
-            ->method('chat')
-            ->with(
-                $this->callback(function ($params) {
-                    // Verify that glossary terms are included in the prompt
-                    return isset($params['model']) &&
-                        $params['model'] === 'mymodel' &&
-                        isset($params['messages']) &&
-                        is_array($params['messages']) &&
-                        str_contains(
-                            $params['messages'][0]['content'],
-                            'archive -> archive or archiver'
-                        );
-                })
-            )
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Veuillez archiver vos documents',
-                            ],
-                        ],
-                    ],
-                ])
-            );
+    /**
+     * @var \PHPUnit\Framework\MockObject\MockObject&TranslationEngineInterface
+     */
+    private $mockEngine;
 
-        $translator = new Translator($openai, 'mymodel');
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->mockEngine = $this->createMock(TranslationEngineInterface::class);
+    }
+
+    protected function tearDown(): void
+    {
+        unset($this->mockEngine);
+        parent::tearDown();
+    }
+
+    public function testTranslateWithGlossary(): void
+    {
+        $this->mockEngine
+            ->expects($this->once())
+            ->method('translate')
+            ->with(
+                'Please archive your documents',
+                $this->stringContains('archive -> archive or archiver')
+            )
+            ->willReturn('Veuillez archiver vos documents');
+
+        $translator = new Translator($this->mockEngine);
 
         $result = $translator->translate(
             'Please archive your documents',
             'fr',
             FrenchGuidelinesChecker::loadGlossary('fr')
         );
-        if ($result) {
-            $this->assertEquals('Veuillez archiver vos documents', $result[0]);
-            // no Flags
-            $this->assertEquals(null, $result[1]);
-        }
+
+        $this->assertNotNull($result);
+        $this->assertEquals('Veuillez archiver vos documents', $result[0]);
+        $this->assertNull($result[1]);
     }
 
     /**
@@ -84,26 +80,14 @@ class TranslatorTest extends TestCase
 
     public function testInteractiveTranslation(): void
     {
-        // Mock OpenAI client
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
+        $this->mockEngine
             ->expects($this->once())
-            ->method('chat')
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Bonjour le monde',
-                            ],
-                        ],
-                    ],
-                ])
-            );
+            ->method('translate')
+            ->willReturn('Bonjour le monde');
 
         // Create a partial mock of Translator to mock promptUser
         $translator = $this->getMockBuilder(Translator::class)
-            ->setConstructorArgs([$openai, 'mymodel', true])
+            ->setConstructorArgs([$this->mockEngine, true])
             ->onlyMethods(['promptUser'])
             ->getMock();
 
@@ -115,35 +99,22 @@ class TranslatorTest extends TestCase
             ->willReturn(['Bonjour le monde', null]);
 
         $result = $translator->translate('Hello world');
-        if ($result) {
-            $this->assertEquals('Bonjour le monde', $result[0]);
-            $this->assertNull($result[1]); // No flags for accepted translation
-        } else {
-            $this->fail('Translation result should not be null');
-        }
+
+        $this->assertNotNull($result);
+        $this->assertEquals('Bonjour le monde', $result[0]);
+        $this->assertNull($result[1]);
     }
 
     public function testInteractiveTranslationWithReview(): void
     {
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
+        $this->mockEngine
             ->expects($this->once())
-            ->method('chat')
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Bonjour le monde',
-                            ],
-                        ],
-                    ],
-                ])
-            );
+            ->method('translate')
+            ->willReturn('Bonjour le monde');
 
         // Create a partial mock of Translator
         $translator = $this->getMockBuilder(Translator::class)
-            ->setConstructorArgs([$openai, 'mymodel', true])
+            ->setConstructorArgs([$this->mockEngine, true])
             ->onlyMethods(['promptUser'])
             ->getMock();
 
@@ -155,35 +126,22 @@ class TranslatorTest extends TestCase
             ->willReturn(['Bonjour le monde', 'fuzzy']);
 
         $result = $translator->translate('Hello world');
-        if ($result) {
-            $this->assertEquals('Bonjour le monde', $result[0]);
-            $this->assertEquals('fuzzy', $result[1]);
-        } else {
-            $this->fail('Translation result should not be null');
-        }
+
+        $this->assertNotNull($result);
+        $this->assertEquals('Bonjour le monde', $result[0]);
+        $this->assertEquals('fuzzy', $result[1]);
     }
 
     public function testInteractiveTranslationWithStop(): void
     {
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
+        $this->mockEngine
             ->expects($this->once())
-            ->method('chat')
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Bonjour le monde',
-                            ],
-                        ],
-                    ],
-                ])
-            );
+            ->method('translate')
+            ->willReturn('Bonjour le monde');
 
         // Create a partial mock of Translator
         $translator = $this->getMockBuilder(Translator::class)
-            ->setConstructorArgs([$openai, 'mymodel', true])
+            ->setConstructorArgs([$this->mockEngine, true])
             ->onlyMethods(['promptUser'])
             ->getMock();
 
@@ -195,12 +153,10 @@ class TranslatorTest extends TestCase
             ->willReturn([null, 'stop']);
 
         $result = $translator->translate('Hello world');
-        if ($result) {
-            $this->assertNull($result[0]);
-            $this->assertEquals('stop', $result[1]);
-        } else {
-            $this->fail('Translation result should not be null');
-        }
+
+        $this->assertNotNull($result);
+        $this->assertNull($result[0]);
+        $this->assertEquals('stop', $result[1]);
     }
 
     public function testGetLanguageName(): void
@@ -217,33 +173,16 @@ class TranslatorTest extends TestCase
 
     public function testTranslateToGerman(): void
     {
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
+        $this->mockEngine
             ->expects($this->once())
-            ->method('chat')
+            ->method('translate')
             ->with(
-                $this->callback(function ($params) {
-                    // Verify German is in the prompt
-                    return isset($params['messages'][0]['content']) &&
-                        str_contains(
-                            $params['messages'][0]['content'],
-                            'German'
-                        );
-                })
+                'Hello world',
+                $this->stringContains('German')
             )
-            ->willReturn(
-                json_encode([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => 'Hallo Welt',
-                            ],
-                        ],
-                    ],
-                ])
-            );
+            ->willReturn('Hallo Welt');
 
-        $translator = new Translator($openai, 'gpt-3.5-turbo');
+        $translator = new Translator($this->mockEngine);
         $result = $translator->translate('Hello world', 'de');
 
         $this->assertNotNull($result);
@@ -251,101 +190,4 @@ class TranslatorTest extends TestCase
         $this->assertNull($result[1]);
     }
 
-    public function testVerifyApiCredentials(): void
-    {
-        // Test successful API verification via model retrieval
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
-            ->expects($this->once())
-            ->method('retrieveModel')
-            ->with('gpt-3.5-turbo')
-            ->willReturn(
-                json_encode([
-                    'id' => 'gpt-3.5-turbo',
-                    'object' => 'model',
-                    'created' => 1677649963,
-                    'owned_by' => 'openai',
-                ])
-            );
-
-        $translator = new Translator($openai, 'gpt-3.5-turbo');
-        $result = $translator->verifyApiCredentials();
-
-        $this->assertIsArray($result);
-        $this->assertTrue($result['success']);
-        $this->assertNull($result['error']);
-    }
-
-    public function testVerifyApiCredentialsModelNotFound(): void
-    {
-        // Test model not found
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
-            ->expects($this->once())
-            ->method('retrieveModel')
-            ->with('gpt-3.5-turbo')
-            ->willReturn(
-                json_encode([
-                    'error' => [
-                        'message' => "The model 'gpt-3.5-turbo' does not exist",
-                        'type' => 'invalid_request_error',
-                        'code' => 'model_not_found',
-                    ],
-                ])
-            );
-
-        $translator = new Translator($openai, 'gpt-3.5-turbo');
-        $result = $translator->verifyApiCredentials();
-
-        $this->assertIsArray($result);
-        $this->assertFalse($result['success']);
-        $this->assertEquals(
-            "The model 'gpt-3.5-turbo' does not exist",
-            $result['error']
-        );
-    }
-
-    public function testVerifyApiCredentialsInvalidKey(): void
-    {
-        // Test invalid API key
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
-            ->expects($this->once())
-            ->method('retrieveModel')
-            ->with('gpt-3.5-turbo')
-            ->willReturn(
-                json_encode([
-                    'error' => [
-                        'message' => 'Incorrect API key provided',
-                        'type' => 'invalid_request_error',
-                        'code' => 'invalid_api_key',
-                    ],
-                ])
-            );
-
-        $translator = new Translator($openai, 'gpt-3.5-turbo');
-        $result = $translator->verifyApiCredentials();
-
-        $this->assertIsArray($result);
-        $this->assertFalse($result['success']);
-        $this->assertEquals('Incorrect API key provided', $result['error']);
-    }
-
-    public function testVerifyApiCredentialsInvalidJson(): void
-    {
-        // Test invalid JSON response
-        $openai = $this->createMock(\Orhanerday\OpenAi\OpenAi::class);
-        $openai
-            ->expects($this->once())
-            ->method('retrieveModel')
-            ->with('gpt-3.5-turbo')
-            ->willReturn('invalid json');
-
-        $translator = new Translator($openai, 'gpt-3.5-turbo');
-        $result = $translator->verifyApiCredentials();
-
-        $this->assertIsArray($result);
-        $this->assertFalse($result['success']);
-        $this->assertEquals('Invalid response from API', $result['error']);
-    }
 }

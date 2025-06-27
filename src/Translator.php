@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace Youniwemi\TranslationChecker;
 
-use Orhanerday\OpenAi\OpenAi;
-
 class Translator
 {
     /**
      * Translator constructor.
      *
-     * @param OpenAi|null $ai The OpenAI client instance (optional)
-     * @param string|null $model The model to use for translation (default: 'gpt-3.5-turbo')
+     * @param TranslationEngineInterface|null $engine The translation engine (optional)
      * @param bool $interactive Whether to prompt the user for confirmation on translations
      */
     public function __construct(
-        private ?OpenAi $ai = null,
-        private ?string $model = null,
+        private ?TranslationEngineInterface $engine = null,
         private bool $interactive = false
     ) {
     }
@@ -163,7 +159,7 @@ class Translator
         string $targetLang = 'fr',
         array $glossary = []
     ): array|null {
-        if (!$this->ai) {
+        if (!$this->engine) {
             return null;
         }
 
@@ -200,35 +196,11 @@ class Translator
             }
         }
 
-        $request = [
-            'model' => $this->model ?? 'gpt-3.5-turbo',
-            'messages' => [
-                [
-                    'role' => 'system',
-                    'content' => $systemPrompt,
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $original,
-                ],
-            ],
-            'temperature' => 0.8,
-        ];
-
-        $response = $this->ai->chat($request);
-        if ($response === false || !is_string($response)) {
+        try {
+            $suggested = trim($this->engine->translate($original, $systemPrompt));
+        } catch (\Exception $e) {
             return [null, null];
         }
-        $response_array = json_decode($response, true);
-        if (
-            !is_array($response_array) ||
-            !isset($response_array['choices']) ||
-            !is_array($response_array['choices']) ||
-            !isset($response_array['choices'][0]['message']['content'])
-        ) {
-            return [null, null];
-        }
-        $suggested = trim($response_array['choices'][0]['message']['content']);
         $flag = null;
         if ($suggested && $this->interactive) {
             [$suggested, $flag] = $this->promptUser(
@@ -241,55 +213,4 @@ class Translator
         return [$suggested, $flag];
     }
 
-    /**
-     * Verify API credentials by attempting to retrieve the configured model
-     *
-     * @return array{success: bool, error: string|null} Result with success status and error message if any
-     */
-    public function verifyApiCredentials(): array
-    {
-        if (!$this->ai || !$this->model) {
-            return [
-                'success' => false,
-                'error' => 'API client or model not configured',
-            ];
-        }
-
-        try {
-            $response = $this->ai->retrieveModel($this->model);
-            if ($response === false || !is_string($response)) {
-                return ['success' => false, 'error' => 'No response from API'];
-            }
-
-            $result = json_decode($response, true);
-            if (!is_array($result)) {
-                return [
-                    'success' => false,
-                    'error' => 'Invalid response from API',
-                ];
-            }
-
-            // Check if there's an error in the response
-            if (isset($result['error'])) {
-                $errorMessage =
-                    $result['error']['message'] ?? 'Unknown API error';
-                return ['success' => false, 'error' => $errorMessage];
-            }
-
-            // Check if the model was successfully retrieved
-            if (isset($result['id']) && $result['id'] === $this->model) {
-                return ['success' => true, 'error' => null];
-            }
-
-            return [
-                'success' => false,
-                'error' => 'Model not found in response',
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => 'Exception: ' . $e->getMessage(),
-            ];
-        }
-    }
 }

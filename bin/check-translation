@@ -8,9 +8,9 @@ if (!isset($_composer_autoload_path)) {
     require $_composer_autoload_path;
 }
 
-use Orhanerday\OpenAi\OpenAi;
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
 use Youniwemi\TranslationChecker\Translator;
+use Youniwemi\TranslationChecker\TranslationEngine;
 
 $options = getopt("", [
     "help",
@@ -70,23 +70,17 @@ if ($translate) {
         );
         exit(1);
     }
-    $ai = new OpenAi($apiKey);
-    if ($apiUrl) {
-        $ai->setBaseURL($apiUrl);
-    }
-    $translator = new Translator($ai, $model, isset($options["interactive"]));
-
-    // Verify API credentials by attempting to retrieve the model
-    $verification = $translator->verifyApiCredentials();
-    if (!$verification["success"]) {
+    try {
+        $engine = TranslationEngine::openai($apiKey, $model, $apiUrl);
+    } catch (\Exception $e) {
         fwrite(
             STDERR,
-            "Error: API verification failed - " .
-                $verification["error"] .
-                PHP_EOL
+            "Error: Engine creation failed - " . $e->getMessage() . PHP_EOL
         );
         exit(1);
     }
+    
+    $translator = new Translator($engine, isset($options["interactive"]));
 
     $checker = new FrenchGuidelinesChecker($translator);
 } else {
