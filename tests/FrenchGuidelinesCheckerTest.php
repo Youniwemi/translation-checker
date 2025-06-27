@@ -402,4 +402,61 @@ class FrenchGuidelinesCheckerTest extends TestCase
         $this->assertStringContainsString('glossary-review:', $result['fixed_content']);
         $this->assertStringContainsString("'archive' → 'archive ou archiver'", $result['fixed_content']);
     }
+
+    public function testRetranslateGlossaryOnlyProcessesEntriesWithGlossaryComments(): void
+    {
+        // PO content with one entry having glossary-review comment and one without
+        $po = <<<PO
+            msgid "Test message without comment"
+            msgstr ""
+
+            # glossary-review: 'archive' → 'archive ou archiver'
+            msgid "Please archive your documents"
+            msgstr "Veuillez compresser vos documents"
+
+            msgid "Another untranslated message"
+            msgstr ""
+            PO;
+
+        // Mock translator that counts how many times translate is called
+        $mockTranslator = $this->createMock(Translator::class);
+        $mockTranslator->expects($this->once()) // Should only be called once for the glossary-review entry
+            ->method('translate')
+            ->willReturn(['Veuillez archiver vos documents', null]);
+
+        $checker = new FrenchGuidelinesChecker($mockTranslator);
+
+        // Test with retranslateGlossary=true
+        $result = $checker->check($po, false, true, 'fr', true);
+
+        // Should process only the entry with glossary-review comment
+        $this->assertIsArray($result);
+    }
+
+    public function testNormalTranslationModeIgnoresGlossaryComments(): void
+    {
+        // PO content with translated entry having glossary-review comment and untranslated without
+        $po = <<<PO
+            msgid "Test message without comment"
+            msgstr ""
+
+            # glossary-review: 'archive' → 'archive ou archiver'
+            msgid "Please archive your documents"
+            msgstr "Veuillez compresser vos documents"
+            PO;
+
+        // Mock translator should be called once for the empty translation only
+        $mockTranslator = $this->createMock(Translator::class);
+        $mockTranslator->expects($this->once()) // Should only be called for empty translation
+            ->method('translate')
+            ->willReturn(['Message de test traduit', null]);
+
+        $checker = new FrenchGuidelinesChecker($mockTranslator);
+
+        // Test with normal translation mode (retranslateGlossary=false)
+        $result = $checker->check($po, false, true, 'fr', false);
+
+        // Should process only untranslated entries
+        $this->assertIsArray($result);
+    }
 }

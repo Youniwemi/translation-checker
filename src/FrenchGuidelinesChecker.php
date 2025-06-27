@@ -17,6 +17,19 @@ class FrenchGuidelinesChecker
     {
     }
 
+    /**
+     * Check if a translation has glossary-review comments
+     */
+    private function hasGlossaryReviewComment(\Gettext\Translation $translation): bool
+    {
+        foreach ($translation->getComments() as $comment) {
+            if (is_string($comment) && str_contains($comment, 'glossary-review:')) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** @return array<string, array<string>> */
     public static function loadGlossary(string $lang = 'fr'): array
     {
@@ -44,13 +57,15 @@ class FrenchGuidelinesChecker
      * @param bool $and_fix Whether to fix the content
      * @param bool $translate Whether to translate missing strings
      * @param string $targetLang The target language code
+     * @param bool $retranslateGlossary Whether to retranslate only entries with glossary-review comments
      * @return array{errors: string[], warnings: string[], fixed_content: string|null}
      */
     public function check(
         string $content,
         bool $and_fix = false,
         bool $translate = false,
-        string $targetLang = 'fr'
+        string $targetLang = 'fr',
+        bool $retranslateGlossary = false
     ): array {
         $errors = [];
         $warnings = [];
@@ -64,7 +79,19 @@ class FrenchGuidelinesChecker
             $original = $translation->getOriginal();
             $translated = $translation->getTranslation() ?? '';
 
-            if (empty($translated) && $translate && !$stop_translation) {
+            // Handle translation logic
+            $shouldTranslate = false;
+            if ($translate && !$stop_translation) {
+                if ($retranslateGlossary) {
+                    // Only translate if entry has glossary-review comments
+                    $shouldTranslate = $this->hasGlossaryReviewComment($translation);
+                } else {
+                    // Normal translation: only translate empty strings
+                    $shouldTranslate = empty($translated);
+                }
+            }
+
+            if ($shouldTranslate) {
                 $suggestion = $this->translate(
                     $original,
                     $targetLang,

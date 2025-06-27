@@ -20,6 +20,7 @@ $options = getopt("", [
     "no-warnings",
     "interactive",
     "engine:",
+    "retranslate-glossary",
 ]);
 $args = array_values(
     array_filter($argv, fn($arg) => !str_starts_with($arg, "-"))
@@ -28,7 +29,7 @@ array_shift($args); // Remove script name
 
 if (isset($options["help"]) || empty($args)) {
     echo <<<HELP
-Usage: check-translation [--fix] [--quiet] [--translate] [--no-warnings] [--interactive] [--engine=<engine>] <file.po> [<file2.po> ...]
+Usage: check-translation [--fix] [--quiet] [--translate] [--no-warnings] [--interactive] [--engine=<engine>] [--retranslate-glossary] <file.po> [<file2.po> ...]
 Check typography and translate PO files. Language is auto-detected from filename (e.g., plugin-de.po → German)
 
 Supported Languages:
@@ -40,13 +41,14 @@ Supported Languages:
   Dutch (nl)      - Translation only
 
 Options:
-  --fix         Fix the issues and save changes back to the file
-  --quiet       Only show errors and warnings (no progress info)
-  --no-warnings Only show errors (ignore warnings)
-  --translate   Translate new strings if not translated yet
-  --interactive Ask for confirmation before applying each translation
-  --engine      Translation engine to use: 'openai' (default) or 'claude'
-  --help        Show this help message
+  --fix                 Fix the issues and save changes back to the file
+  --quiet               Only show errors and warnings (no progress info)
+  --no-warnings         Only show errors (ignore warnings)
+  --translate           Translate new strings if not translated yet
+  --interactive         Ask for confirmation before applying each translation
+  --engine              Translation engine to use: 'openai' (default) or 'claude'
+  --retranslate-glossary Retranslate only entries with glossary-review comments
+  --help                Show this help message
 
 Translation Configuration:
   OpenAI (default):
@@ -69,6 +71,7 @@ HELP;
 }
 
 $translate = isset($options["translate"]);
+$retranslateGlossary = isset($options["retranslate-glossary"]);
 
 if ($translate) {
     $engineType = $options["engine"] ?? "openai";
@@ -156,7 +159,8 @@ foreach ($args as $file) {
             $content,
             isset($options["fix"]),
             $translate,
-            $targetLang
+            $targetLang,
+            $retranslateGlossary
         );
 
         if (!$quiet) {

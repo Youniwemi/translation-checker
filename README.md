@@ -71,6 +71,11 @@ Interactive Spanish translation:
 vendor/bin/check-translation --fix --translate --interactive plugin-es.po
 ```
 
+Retranslate only entries with glossary-review comments:
+```bash
+vendor/bin/check-translation --fix --translate --retranslate-glossary plugin-fr.po
+```
+
 Process multiple files (auto-detects language from each filename):
 ```bash
 vendor/bin/check-translation --fix *.po
@@ -90,6 +95,7 @@ Options:
 - `--translate` Translate the missing translations
 - `--interactive` Use interactive mode for translation
 - `--engine` Choose translation engine: 'openai' (default) or 'claude'
+- `--retranslate-glossary` Retranslate only entries with glossary-review comments
 - `--help` Show help message
 
 ## Messages
@@ -115,6 +121,19 @@ msgstr "Veuillez soumettre votre formulaire"
 ```
 
 These comments help translators identify and fix terminology inconsistencies directly in their PO editors.
+
+### Retranslating Glossary Issues
+Use the `--retranslate-glossary` flag with `--translate` to efficiently fix terminology issues:
+
+```bash
+# First run: identify glossary issues and add review comments
+vendor/bin/check-translation --fix plugin-fr.po
+
+# Second run: retranslate only entries with glossary issues
+vendor/bin/check-translation --fix --translate --retranslate-glossary plugin-fr.po
+```
+
+This targeted approach only retranslates entries that have glossary-review comments, making it fast and focused on fixing terminology inconsistencies without affecting other translations.
 
 ## Development
 
