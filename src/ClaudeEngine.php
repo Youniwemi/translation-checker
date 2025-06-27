@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Youniwemi\TranslationChecker;
 
+use RuntimeException;
+
 class ClaudeEngine implements TranslationEngineInterface
 {
     public function __construct(
@@ -15,8 +17,8 @@ class ClaudeEngine implements TranslationEngineInterface
     {
         $output = $this->callClaude($text, $systemPrompt);
         
-        if ($output === false || trim($output) === '') {
-            throw new \RuntimeException('Failed to get response from Claude CLI');
+        if ($output === false || $output === null || trim($output) === '') {
+            throw new RuntimeException('Failed to get response from Claude CLI');
         }
 
         return trim($output);
@@ -31,11 +33,11 @@ class ClaudeEngine implements TranslationEngineInterface
         exec($command, $output, $returnVar);
         
         if ($returnVar !== 0) {
-            throw new \RuntimeException('Claude CLI is not available. Please install claude command-line tool.');
+            throw new RuntimeException('Claude CLI is not available. Please install claude command-line tool.');
         }
     }
 
-    protected function callClaude(string $prompt, string $systemPrompt): string|false
+    protected function callClaude(string $prompt, string $systemPrompt): string|false|null
     {
         $escapedPrompt = escapeshellarg($prompt);
         $escapedSystemPrompt = escapeshellarg($systemPrompt);

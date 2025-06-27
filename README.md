@@ -6,7 +6,7 @@ A PHP package for ensuring proper French typography and consistent terminology i
 
 The main idea is to help developers and translators maintain high-quality French translations by enforcing typographic rules and checking for consistency in terminology. The rules of typography are based on the [Les règles typographiques utilisées pour la traduction de WordPress](https://fr.wordpress.org/team/handbook/polyglots/les-regles-typographiques-utilisees-pour-la-traduction-de-wp-en-francais/).
 
-This package will also allow to translate missing translations using AI providers: either through the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.) or using Claude Code CLI. The translation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
+This package will also allow you to translate missing translations using AI providers: either through the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.) or using Claude Code CLI. The translation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
 
 
 
