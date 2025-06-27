@@ -44,6 +44,11 @@ class TranslationEngine
      */
     public static function claude(?string $model = null): TranslationEngineInterface
     {
-        throw new \RuntimeException('ClaudeEngine not implemented yet');
+        $engine = new ClaudeEngine($model);
+        
+        // Verify engine before returning
+        $engine->verifyEngine();
+        
+        return $engine;
     }
 }

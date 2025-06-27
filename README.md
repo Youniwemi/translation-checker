@@ -6,7 +6,11 @@ A PHP package for ensuring proper French typography and consistent terminology i
 
 The main idea is to help developers and translators maintain high-quality French translations by enforcing typographic rules and checking for consistency in terminology. The rules of typography are based on the [Les règles typographiques utilisées pour la traduction de WordPress](https://fr.wordpress.org/team/handbook/polyglots/les-regles-typographiques-utilisees-pour-la-traduction-de-wp-en-francais/).
 
-This package will also allow to translate missing translations using any AI provider compatibile with the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.). The transalation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
+This package will also allow to translate missing translations using AI engines:
+- **Claude Code CLI** (preferred): Uses the Claude command-line interface for translations
+- **OpenAI API**: Compatible with any provider that supports the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.)
+
+The translation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
 
 
 
@@ -83,6 +87,41 @@ Options:
 - `--translate` Translate the missing translations
 - `--interactive` Use interactive mode for translation
 - `--help` Show help message
+
+## Translation Engine Configuration
+
+The translation feature automatically selects the best available engine:
+
+### Claude Code CLI (Preferred)
+If the `claude` command is available in your PATH, it will be used automatically.
+
+```bash
+# Basic usage - Claude CLI will be used if available
+vendor/bin/check-translation --fix --translate plugin-de.po
+
+# Specify a Claude model via environment variable
+CLAUDE_MODEL=sonnet vendor/bin/check-translation --fix --translate plugin-fr.po
+CLAUDE_MODEL=opus vendor/bin/check-translation --fix --translate plugin-es.po
+```
+
+### OpenAI API (Fallback)
+If Claude CLI is not available, the tool falls back to OpenAI API.
+
+```bash
+# Set OpenAI credentials
+export OPENAI_API_KEY=your-api-key
+export OPENAI_MODEL=gpt-4  # Optional, defaults to gpt-3.5-turbo
+export OPENAI_API_URL=https://api.openai.com/v1  # Optional, for custom endpoints
+
+vendor/bin/check-translation --fix --translate plugin-it.po
+```
+
+The tool will display which engine is being used at the start of translation:
+```
+Using translation engine: Claude Code CLI
+# or
+Using translation engine: OpenAI API (model: gpt-4)
+```
 
 ## Messages
 
