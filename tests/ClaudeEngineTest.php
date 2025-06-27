@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Youniwemi\TranslationCheckerTests;
 
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use Youniwemi\TranslationChecker\ClaudeEngine;
 
 class ClaudeEngineTest extends TestCase
@@ -102,7 +103,7 @@ class ClaudeEngineTest extends TestCase
     {
         // Use reflection to test the protected method
         $engine = new ClaudeEngine();
-        $reflection = new \ReflectionClass($engine);
+        $reflection = new ReflectionClass($engine);
         $method = $reflection->getMethod('callClaude');
         $method->setAccessible(true);
 
@@ -119,7 +120,7 @@ class ClaudeEngineTest extends TestCase
     public function testCallClaudeWithModel(): void
     {
         $engine = new ClaudeEngine('claude-3-opus');
-        $reflection = new \ReflectionClass($engine);
+        $reflection = new ReflectionClass($engine);
         $method = $reflection->getMethod('callClaude');
         $method->setAccessible(true);
 
