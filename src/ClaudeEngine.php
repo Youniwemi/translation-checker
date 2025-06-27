@@ -53,7 +53,6 @@ class ClaudeEngine implements TranslationEngineInterface
             $command .= ' --model ' . escapeshellarg($this->model);
         }
 
-        echo "Executing command: $command\n";
         $command .= ' 2>&1';
 
         $output = shell_exec($command);
