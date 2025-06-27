@@ -19,7 +19,7 @@ $options = getopt("", [
     "translate",
     "no-warnings",
     "interactive",
-    "engine:",
+    "engine",
 ]);
 $args = array_values(
     array_filter($argv, fn($arg) => !str_starts_with($arg, "-"))
