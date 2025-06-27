@@ -72,17 +72,17 @@ $translate = isset($options["translate"]);
 
 if ($translate) {
     $engineType = $options["engine"] ?? "openai";
-    
+
     try {
         switch ($engineType) {
             case "claude":
-                $model = getenv("CLAUDE_MODEL") ?: null;
+                $model = getenv("CLAUDE_MODEL") ?: "sonnet";
                 $engine = TranslationEngine::claude($model);
                 if (!isset($options["quiet"])) {
                     echo "Using Claude translation engine" . PHP_EOL;
                 }
                 break;
-                
+
             case "openai":
                 $apiKey = getenv("OPENAI_API_KEY");
                 $apiUrl = getenv("OPENAI_API_URL");
@@ -97,14 +97,16 @@ if ($translate) {
                 }
                 $engine = TranslationEngine::openai($apiKey, $model, $apiUrl);
                 if (!isset($options["quiet"])) {
-                    echo "Using OpenAI translation engine (model: $model)" . PHP_EOL;
+                    echo "Using OpenAI translation engine (model: $model)" .
+                        PHP_EOL;
                 }
                 break;
-                
+
             default:
                 fwrite(
                     STDERR,
-                    "Error: Unknown engine '$engineType'. Valid options are: openai, claude" . PHP_EOL
+                    "Error: Unknown engine '$engineType'. Valid options are: openai, claude" .
+                        PHP_EOL
                 );
                 exit(1);
         }
@@ -115,7 +117,7 @@ if ($translate) {
         );
         exit(1);
     }
-    
+
     $translator = new Translator($engine, isset($options["interactive"]));
 
     $checker = new FrenchGuidelinesChecker($translator);

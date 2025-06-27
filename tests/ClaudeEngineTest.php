@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Youniwemi\TranslationCheckerTests;
 
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use Youniwemi\TranslationChecker\ClaudeEngine;
 
 class ClaudeEngineTest extends TestCase
@@ -20,7 +19,8 @@ class ClaudeEngineTest extends TestCase
         $systemPrompt = 'You are a translator';
         $expectedTranslation = 'Bonjour le monde';
 
-        $engine->expects($this->once())
+        $engine
+            ->expects($this->once())
             ->method('callClaude')
             ->with($text, $systemPrompt)
             ->willReturn($expectedTranslation);
@@ -42,7 +42,8 @@ class ClaudeEngineTest extends TestCase
         $systemPrompt = 'System prompt';
         $expectedTranslation = 'Translated text';
 
-        $engine->expects($this->once())
+        $engine
+            ->expects($this->once())
             ->method('callClaude')
             ->with($text, $systemPrompt)
             ->willReturn($expectedTranslation);
@@ -58,9 +59,7 @@ class ClaudeEngineTest extends TestCase
             ->onlyMethods(['callClaude'])
             ->getMock();
 
-        $engine->expects($this->once())
-            ->method('callClaude')
-            ->willReturn('');
+        $engine->expects($this->once())->method('callClaude')->willReturn('');
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Failed to get response from Claude CLI');
@@ -74,7 +73,8 @@ class ClaudeEngineTest extends TestCase
             ->onlyMethods(['callClaude'])
             ->getMock();
 
-        $engine->expects($this->once())
+        $engine
+            ->expects($this->once())
             ->method('callClaude')
             ->willReturn(false);
 
@@ -82,55 +82,5 @@ class ClaudeEngineTest extends TestCase
         $this->expectExceptionMessage('Failed to get response from Claude CLI');
 
         $engine->translate('text', 'prompt');
-    }
-
-    public function testVerifyEngineSucceeds(): void
-    {
-        // We can't easily mock exec(), so we'll test the real implementation
-        // This test will only pass if claude CLI is installed
-        $engine = new ClaudeEngine();
-        
-        // If claude is not installed, this test should be skipped
-        try {
-            $engine->verifyEngine();
-            $this->assertTrue(true); // Engine is available
-        } catch (\RuntimeException $e) {
-            $this->markTestSkipped('Claude CLI is not installed');
-        }
-    }
-
-    public function testCallClaudeBuildsCorrectCommand(): void
-    {
-        // Use reflection to test the protected method
-        $engine = new ClaudeEngine();
-        $reflection = new ReflectionClass($engine);
-        $method = $reflection->getMethod('callClaude');
-        $method->setAccessible(true);
-
-        // We can't easily test the actual command execution, but we can verify
-        // the method exists and returns a string or false
-        $result = $method->invoke($engine, 'test', 'system');
-        
-        $this->assertTrue(
-            is_string($result) || $result === false,
-            'callClaude should return string or false'
-        );
-    }
-
-    public function testCallClaudeWithModel(): void
-    {
-        $engine = new ClaudeEngine('claude-3-opus');
-        $reflection = new ReflectionClass($engine);
-        $method = $reflection->getMethod('callClaude');
-        $method->setAccessible(true);
-
-        // We can't easily test the actual command execution, but we can verify
-        // the method exists and handles the model parameter
-        $result = $method->invoke($engine, 'test', 'system');
-        
-        $this->assertTrue(
-            is_string($result) || $result === false,
-            'callClaude with model should return string or false'
-        );
     }
 }

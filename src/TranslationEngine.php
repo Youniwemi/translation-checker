@@ -38,12 +38,13 @@ class TranslationEngine
     /**
      * Create and verify a Claude engine
      *
-     * @param string|null $model Optional Claude model name
+     * @param string $model Claude model name, default is "sonnet"
      * @return TranslationEngineInterface Verified engine ready for use
      * @throws \RuntimeException If engine verification fails
      */
-    public static function claude(?string $model = null): TranslationEngineInterface
-    {
+    public static function claude(
+        string $model = 'sonnet'
+    ): TranslationEngineInterface {
         $engine = new ClaudeEngine($model);
 
         // Verify engine before returning

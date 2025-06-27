@@ -115,7 +115,8 @@ class Translator
     public const SYSTEM_PROMPT = <<<PROMPT
         Translate the following English text to {{TARGET_LANGUAGE}}, maintaining the original tone and formatting.
         Focus on accuracy and cultural context. Don't add or remove any information.
-        It is very important to not write explanations. Do not echo my prompt. Do not remind me what I asked you for. Do not apologize. Do not self-reference. Do not use generic filler phrases. Get to the point precisely and accurately. Don't add or remove any information. Do not explain what and why, just give me your best possible result.
+        CRITICAL: ANSWER WITH THE TRANSLATION ONLY. NO EXPLANATIONS, NO FORMATTING, NO ADDITIONAL TEXT.                                                                                                                             │ │
+        Just return the translated text without any prefix, suffix, quotes, or commentary.
         PROMPT;
     public const SYSTEM_PROMPT_INTRODUCE_GLOSSARY = <<<PROMPT
         Use these exact translations for the specified terms :
@@ -197,7 +198,9 @@ class Translator
         }
 
         try {
-            $suggested = trim($this->engine->translate($original, $systemPrompt));
+            $suggested = trim(
+                $this->engine->translate($original, $systemPrompt)
+            );
         } catch (\Exception $e) {
             return [null, null];
         }
@@ -212,5 +215,4 @@ class Translator
 
         return [$suggested, $flag];
     }
-
 }
