@@ -1,11 +1,12 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(composer test:*)",
-      "Bash(composer cs:*)",
-      "Bash(composer stan:*)",
-      "Bash(composer qa:*)"
-    ],
-    "deny": []
-  }
+    "permissions": {
+        "allow": [
+            "Bash(composer install)",
+            "Bash(composer test:*)",
+            "Bash(composer cs:*)",
+            "Bash(composer stan:*)",
+            "Bash(composer qa:*)"
+        ],
+        "deny": []
+    }
 }
