@@ -11,6 +11,7 @@ if (!isset($_composer_autoload_path)) {
 use Orhanerday\OpenAi\OpenAi;
 use Youniwemi\TranslationChecker\FrenchGuidelinesChecker;
 use Youniwemi\TranslationChecker\Translator;
+use Youniwemi\TranslationChecker\TranslationEngine;
 
 $options = getopt("", [
     "help",
@@ -19,6 +20,7 @@ $options = getopt("", [
     "translate",
     "no-warnings",
     "interactive",
+    "engine:",
 ]);
 $args = array_values(
     array_filter($argv, fn($arg) => !str_starts_with($arg, "-"))
@@ -27,7 +29,7 @@ array_shift($args); // Remove script name
 
 if (isset($options["help"]) || empty($args)) {
     echo <<<HELP
-Usage: check-translation [--fix] [--quiet] [--translate] [--no-warnings] [--interactive] <file.po> [<file2.po> ...]
+Usage: check-translation [--fix] [--quiet] [--translate] [--no-warnings] [--interactive] [--engine=ENGINE] <file.po> [<file2.po> ...]
 Check typography and translate PO files. Language is auto-detected from filename (e.g., plugin-de.po → German)
 
 Supported Languages:
@@ -42,13 +44,24 @@ Options:
   --fix         Fix the issues and save changes back to the file
   --quiet       Only show errors and warnings (no progress info)
   --no-warnings Only show errors (ignore warnings)
-  --translate   Translate new strings if not translated yet ( Please SET OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables)
+  --translate   Translate new strings if not translated yet
   --interactive Ask for confirmation before applying each translation
+  --engine      Translation engine to use: openai (default) or claude
   --help        Show this help message
+
+Environment Variables:
+  For OpenAI (default):
+    OPENAI_API_KEY   OpenAI API key
+    OPENAI_API_URL   Custom API URL (optional)
+    OPENAI_MODEL     Model to use (default: gpt-3.5-turbo)
+  
+  For Claude:
+    CLAUDE_MODEL     Model to use (default: sonnet)
 
 Examples:
   check-translation plugin-fr.po                                      # Check French typography
-  check-translation --fix --translate plugin-de.po                    # Translate to German
+  check-translation --fix --translate plugin-de.po                    # Translate to German using OpenAI
+  check-translation --fix --translate --engine=claude plugin-de.po    # Translate to German using Claude
   check-translation --fix --translate --interactive plugin-es.po      # Interactive Spanish translation
   check-translation --quiet --fix *.po                                # Process all PO files
 
@@ -59,29 +72,38 @@ HELP;
 $translate = isset($options["translate"]);
 
 if ($translate) {
-    $apiKey = getenv("OPENAI_API_KEY");
-    $apiUrl = getenv("OPENAI_API_URL");
-    $model = getenv("OPENAI_MODEL") ?: "gpt-3.5-turbo";
-    if (empty($apiKey) && empty($apiUrl)) {
-        fwrite(
-            STDERR,
-            "Error: OPENAI_API_KEY, OPENAI_API_URL, and OPENAI_MODEL environment variables are not set. Please set them before running the script." .
-                PHP_EOL
-        );
-        exit(1);
+    $engineType = $options["engine"] ?? "openai";
+    
+    if ($engineType === "claude") {
+        // Use Claude engine
+        $model = getenv("CLAUDE_MODEL") ?: null;
+        $engine = TranslationEngine::claude($model);
+    } else {
+        // Default to OpenAI engine
+        $apiKey = getenv("OPENAI_API_KEY");
+        $apiUrl = getenv("OPENAI_API_URL");
+        $model = getenv("OPENAI_MODEL") ?: null;
+        
+        if (empty($apiKey)) {
+            fwrite(
+                STDERR,
+                "Error: OPENAI_API_KEY environment variable is not set. Please set it before running the script." .
+                    PHP_EOL
+            );
+            exit(1);
+        }
+        
+        $engine = TranslationEngine::openai($apiKey, $apiUrl, $model);
     }
-    $ai = new OpenAi($apiKey);
-    if ($apiUrl) {
-        $ai->setBaseURL($apiUrl);
-    }
-    $translator = new Translator($ai, $model, isset($options["interactive"]));
+    
+    $translator = new Translator($engine, null, isset($options["interactive"]));
 
-    // Verify API credentials by attempting to retrieve the model
+    // Verify engine credentials
     $verification = $translator->verifyApiCredentials();
     if (!$verification["success"]) {
         fwrite(
             STDERR,
-            "Error: API verification failed - " .
+            "Error: Engine verification failed - " .
                 $verification["error"] .
                 PHP_EOL
         );

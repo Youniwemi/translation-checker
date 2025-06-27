@@ -8,18 +8,29 @@ use Orhanerday\OpenAi\OpenAi;
 
 class Translator
 {
+    private ?TranslationEngineInterface $engine = null;
+    private ?OpenAi $ai = null;
+    
     /**
      * Translator constructor.
      *
-     * @param OpenAi|null $ai The OpenAI client instance (optional)
+     * @param OpenAi|TranslationEngineInterface|null $aiOrEngine The OpenAI client instance or TranslationEngine (optional)
      * @param string|null $model The model to use for translation (default: 'gpt-3.5-turbo')
      * @param bool $interactive Whether to prompt the user for confirmation on translations
      */
     public function __construct(
-        private ?OpenAi $ai = null,
+        OpenAi|TranslationEngineInterface|null $aiOrEngine = null,
         private ?string $model = null,
         private bool $interactive = false
     ) {
+        // Handle backward compatibility with OpenAi instance
+        if ($aiOrEngine instanceof OpenAi) {
+            // For backward compatibility, we'll keep the OpenAi instance
+            // and create a temporary adapter in the translate method
+            $this->ai = $aiOrEngine;
+        } elseif ($aiOrEngine instanceof TranslationEngineInterface) {
+            $this->engine = $aiOrEngine;
+        }
     }
 
     /**
@@ -163,7 +174,7 @@ class Translator
         string $targetLang = 'fr',
         array $glossary = []
     ): array|null {
-        if (!$this->ai) {
+        if (!$this->engine && !$this->ai) {
             return null;
         }
 
@@ -181,54 +192,74 @@ class Translator
                 }
             }
         }
-
-        // Get language name and build system prompt
-        $langName = self::getLanguageName($targetLang);
-        $systemPrompt = str_replace(
-            '{{TARGET_LANGUAGE}}',
-            $langName,
-            self::SYSTEM_PROMPT
-        );
-
-        // Build the prompt with glossary terms (only for French)
-        if (!empty($relevantTerms)) {
-            $systemPrompt .=
-                "\n" . self::SYSTEM_PROMPT_INTRODUCE_GLOSSARY . "\n";
-            foreach ($relevantTerms as $term => $preferred) {
-                $systemPrompt .=
-                    "- $term -> " . implode(' or ', $preferred) . "\n";
+        
+        // Use the new engine interface if available
+        if ($this->engine) {
+            try {
+                // Use the engine to translate
+                $suggested = $this->engine->translate(
+                    $original,
+                    'WordPress Translation', // Default context
+                    $targetLang . '_' . strtoupper($targetLang), // Convert 'fr' to 'fr_FR'
+                    'default', // Default text domain
+                    $relevantTerms,
+                    false, // Interactive is handled here, not in engine
+                    null // Let engine use its default system prompt
+                );
+            } catch (\Exception $e) {
+                // Handle translation errors gracefully
+                return [null, null];
             }
-        }
+        } else {
+            // Backward compatibility: use the old OpenAI implementation
+            // Get language name and build system prompt
+            $langName = self::getLanguageName($targetLang);
+            $systemPrompt = str_replace(
+                '{{TARGET_LANGUAGE}}',
+                $langName,
+                self::SYSTEM_PROMPT
+            );
 
-        $request = [
-            'model' => $this->model ?? 'gpt-3.5-turbo',
-            'messages' => [
-                [
-                    'role' => 'system',
-                    'content' => $systemPrompt,
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $original,
-                ],
-            ],
-            'temperature' => 0.8,
-        ];
+            // Build the prompt with glossary terms (only for French)
+            if (!empty($relevantTerms)) {
+                $systemPrompt .=
+                    "\n" . self::SYSTEM_PROMPT_INTRODUCE_GLOSSARY . "\n";
+                foreach ($relevantTerms as $term => $preferred) {
+                    $systemPrompt .=
+                        "- $term -> " . implode(' or ', $preferred) . "\n";
+                }
+            }
 
-        $response = $this->ai->chat($request);
-        if ($response === false || !is_string($response)) {
-            return [null, null];
+            $request = [
+                'model' => $this->model ?? 'gpt-3.5-turbo',
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => $systemPrompt,
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => $original,
+                    ],
+                ],
+                'temperature' => 0.8,
+            ];
+
+            $response = $this->ai->chat($request);
+            if ($response === false || !is_string($response)) {
+                return [null, null];
+            }
+            $response_array = json_decode($response, true);
+            if (
+                !is_array($response_array) ||
+                !isset($response_array['choices']) ||
+                !is_array($response_array['choices']) ||
+                !isset($response_array['choices'][0]['message']['content'])
+            ) {
+                return [null, null];
+            }
+            $suggested = trim($response_array['choices'][0]['message']['content']);
         }
-        $response_array = json_decode($response, true);
-        if (
-            !is_array($response_array) ||
-            !isset($response_array['choices']) ||
-            !is_array($response_array['choices']) ||
-            !isset($response_array['choices'][0]['message']['content'])
-        ) {
-            return [null, null];
-        }
-        $suggested = trim($response_array['choices'][0]['message']['content']);
         $flag = null;
         if ($suggested && $this->interactive) {
             [$suggested, $flag] = $this->promptUser(
@@ -248,47 +279,59 @@ class Translator
      */
     public function verifyApiCredentials(): array
     {
-        if (!$this->ai || !$this->model) {
-            return [
-                'success' => false,
-                'error' => 'API client or model not configured',
-            ];
-        }
-
-        try {
-            $response = $this->ai->retrieveModel($this->model);
-            if ($response === false || !is_string($response)) {
-                return ['success' => false, 'error' => 'No response from API'];
-            }
-
-            $result = json_decode($response, true);
-            if (!is_array($result)) {
+        if ($this->engine) {
+            // Use the new engine interface
+            try {
+                $this->engine->verifyEngine();
+                return ['success' => true, 'error' => null];
+            } catch (\Exception $e) {
                 return [
                     'success' => false,
-                    'error' => 'Invalid response from API',
+                    'error' => $e->getMessage(),
                 ];
             }
+        } elseif ($this->ai && $this->model) {
+            // Backward compatibility: use the old OpenAI implementation
+            try {
+                $response = $this->ai->retrieveModel($this->model);
+                if ($response === false || !is_string($response)) {
+                    return ['success' => false, 'error' => 'No response from API'];
+                }
 
-            // Check if there's an error in the response
-            if (isset($result['error'])) {
-                $errorMessage =
-                    $result['error']['message'] ?? 'Unknown API error';
-                return ['success' => false, 'error' => $errorMessage];
+                $result = json_decode($response, true);
+                if (!is_array($result)) {
+                    return [
+                        'success' => false,
+                        'error' => 'Invalid response from API',
+                    ];
+                }
+
+                // Check if there's an error in the response
+                if (isset($result['error'])) {
+                    $errorMessage =
+                        $result['error']['message'] ?? 'Unknown API error';
+                    return ['success' => false, 'error' => $errorMessage];
+                }
+
+                // Check if the model was successfully retrieved
+                if (isset($result['id']) && $result['id'] === $this->model) {
+                    return ['success' => true, 'error' => null];
+                }
+
+                return [
+                    'success' => false,
+                    'error' => 'Model not found in response',
+                ];
+            } catch (\Exception $e) {
+                return [
+                    'success' => false,
+                    'error' => 'Exception: ' . $e->getMessage(),
+                ];
             }
-
-            // Check if the model was successfully retrieved
-            if (isset($result['id']) && $result['id'] === $this->model) {
-                return ['success' => true, 'error' => null];
-            }
-
+        } else {
             return [
                 'success' => false,
-                'error' => 'Model not found in response',
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => 'Exception: ' . $e->getMessage(),
+                'error' => 'Translation engine not configured',
             ];
         }
     }

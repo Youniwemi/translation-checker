@@ -6,7 +6,7 @@ A PHP package for ensuring proper French typography and consistent terminology i
 
 The main idea is to help developers and translators maintain high-quality French translations by enforcing typographic rules and checking for consistency in terminology. The rules of typography are based on the [Les règles typographiques utilisées pour la traduction de WordPress](https://fr.wordpress.org/team/handbook/polyglots/les-regles-typographiques-utilisees-pour-la-traduction-de-wp-en-francais/).
 
-This package will also allow to translate missing translations using any AI provider compatibile with the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.). The transalation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
+This package will also allow to translate missing translations using either the OpenAI API (compatible with OpenAI, OpenRouter, Ollama, Deepseek, etc.) or Claude's CLI. The translation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
 
 
 
@@ -26,7 +26,9 @@ This package will also allow to translate missing translations using any AI prov
 ### Translation Features
 - PO file parsing and generation
 - Translation consistency checking via glossary (French only)
-- Interactive (or not) translation mode with OpenAI API integration (compatible with OpenAI, OpenRouter, Ollama, Deepseek, etc.)
+- Interactive (or not) translation mode with:
+  - OpenAI API integration (compatible with OpenAI, OpenRouter, Ollama, Deepseek, etc.)
+  - Claude CLI integration (requires Claude CLI to be installed)
 - Supports multiple target languages based on filename detection
 
 
@@ -54,9 +56,14 @@ Check and fix French typography issues:
 vendor/bin/check-translation --fix plugin-fr.po
 ```
 
-Translate missing translations to German:
+Translate missing translations to German using OpenAI (default):
 ```bash
 vendor/bin/check-translation --fix --translate plugin-de.po
+```
+
+Translate using Claude:
+```bash
+vendor/bin/check-translation --fix --translate --engine=claude plugin-de.po
 ```
 
 Interactive Spanish translation:
@@ -82,6 +89,7 @@ Options:
 - `--no-warnings` Only show errors (ignore warnings)
 - `--translate` Translate the missing translations
 - `--interactive` Use interactive mode for translation
+- `--engine` Translation engine to use: `openai` (default) or `claude`
 - `--help` Show help message
 
 ## Messages
@@ -149,17 +157,32 @@ This package uses [gettext/gettext](https://packagist.org/packages/gettext/gette
 
 
 ## Environment Variables for Translation
-When using the `--translate` option, the following environment variables are required:
-- `OPENAI_API_KEY`: Your OpenAI API key
+
+### For OpenAI (default engine)
+When using the `--translate` option with OpenAI, the following environment variables are used:
+- `OPENAI_API_KEY`: Your OpenAI API key (required)
 - `OPENAI_API_URL`: OpenAI API URL (optional, for custom endpoints, OpenRouter, Ollama, Deepseek, etc.)
 - `OPENAI_MODEL`: Model to use (defaults to 'gpt-3.5-turbo')
 
-### Example using Ollama
+### For Claude
+When using the `--translate --engine=claude` option, the following environment variables are used:
+- `CLAUDE_MODEL`: Model to use (defaults to 'sonnet')
+
+**Note**: Claude engine requires the Claude CLI to be installed on your system.
+
+### Examples
+
+#### Using Ollama (OpenAI-compatible)
 ```bash
 OPENAI_API_URL=http://localhost:11434 OPENAI_MODEL=llama3 check-translation --translate plugin-de.po
 ```
 
-### Example using ChatGPT
+#### Using ChatGPT
 ```bash
 OPENAI_API_KEY=your-api-key-here OPENAI_MODEL=gpt-4 check-translation --translate plugin-de.po
+```
+
+#### Using Claude
+```bash
+CLAUDE_MODEL=opus check-translation --translate --engine=claude plugin-de.po
 ```
