@@ -6,9 +6,7 @@ A PHP package for ensuring proper French typography and consistent terminology i
 
 The main idea is to help developers and translators maintain high-quality French translations by enforcing typographic rules and checking for consistency in terminology. The rules of typography are based on the [Les règles typographiques utilisées pour la traduction de WordPress](https://fr.wordpress.org/team/handbook/polyglots/les-regles-typographiques-utilisees-pour-la-traduction-de-wp-en-francais/).
 
-This package will also allow you to translate missing translations using AI providers: either through the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.) or using Claude Code CLI. The translation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor. This feature is still in development and needs your feedback.
-
-
+This package will also allow you to translate missing translations using AI providers: either through the OpenAI API (OpenAI, OpenRouter, Ollama, Deepseek, etc.) or using Claude Code CLI. The translation can be either fully automated or interactive, allowing you to finetune the suggestions, or add them as fuzzy so you can update them in your favorite PO editor.
 
 ## Features
 
@@ -24,12 +22,13 @@ This package will also allow you to translate missing translations using AI prov
 - Proper ellipsis character (…)
 
 ### Translation Features
-- PO file parsing and generation
+- PO file parsing and generation using gettext/gettext library
 - Translation consistency checking via glossary (French only)
-- Interactive (or not) translation mode with AI integration:
+- Retranslation of glossary-flagged entries with `--retranslate-glossary`
+- Interactive or automated translation modes
+- Multiple AI engines supported:
   - OpenAI API (compatible with OpenAI, OpenRouter, Ollama, Deepseek, etc.)
-  - Claude Code CLI
-- Supports multiple target languages based on filename detection
+  - Claude Code CLI integration
 
 
 ## French Typography Reference
@@ -71,9 +70,9 @@ Interactive Spanish translation:
 vendor/bin/check-translation --fix --translate --interactive plugin-es.po
 ```
 
-Retranslate only entries with glossary-review comments:
+Retranslate only entries with glossary-review comments (translation auto-enabled):
 ```bash
-vendor/bin/check-translation --fix --translate --retranslate-glossary plugin-fr.po
+vendor/bin/check-translation --fix --retranslate-glossary plugin-fr.po
 ```
 
 Process multiple files (auto-detects language from each filename):
@@ -95,7 +94,7 @@ Options:
 - `--translate` Translate the missing translations
 - `--interactive` Use interactive mode for translation
 - `--engine` Choose translation engine: 'openai' (default) or 'claude'
-- `--retranslate-glossary` Retranslate only entries with glossary-review comments
+- `--retranslate-glossary` Retranslate only entries with glossary-review comments (automatically enables translation)
 - `--help` Show help message
 
 ## Messages
@@ -122,37 +121,53 @@ msgstr "Veuillez soumettre votre formulaire"
 
 These comments help translators identify and fix terminology inconsistencies directly in their PO editors.
 
-### Retranslating Glossary Issues
-Use the `--retranslate-glossary` flag with `--translate` to efficiently fix terminology issues:
+### Glossary Retranslation Workflow
+
+The `--retranslate-glossary` flag processes only entries with glossary-review comments:
 
 ```bash
-# First run: identify glossary issues and add review comments
+# Step 1: Identify glossary issues and add review comments
 vendor/bin/check-translation --fix plugin-fr.po
 
-# Second run: retranslate only entries with glossary issues
-vendor/bin/check-translation --fix --translate --retranslate-glossary plugin-fr.po
+# Step 2: Retranslate only flagged entries (translation auto-enabled)
+vendor/bin/check-translation --fix --retranslate-glossary plugin-fr.po
 ```
 
-This targeted approach only retranslates entries that have glossary-review comments, making it fast and focused on fixing terminology inconsistencies without affecting other translations.
+Behavior:
+- Only processes entries with glossary-review comments
+- Automatically enables translation (no need to specify `--translate`)
+- Removes glossary-review comments when translations are fixed
+- Skips entries that don't need terminology fixes
+
 
 ## Development
 
+### Quick Start
 ```bash
 # Install dependencies
 composer install
 
-# Run tests
-composer test
-
-# Run code style fixer
-composer cs
-
-# Run static analysis
-composer stan
-
-# Run all quality checks
+# Run all quality checks (style + analysis + tests)
 composer qa
 ```
+
+### Individual Commands
+```bash
+# Run unit tests
+composer test
+
+# Fix code style (PSR-12)
+composer cs
+
+# Run static analysis (PHPStan level 9)
+composer stan
+```
+
+### Testing
+- 50+ tests covering all features
+- Unit tests for core functionality
+- CLI integration tests for command-line interface
+- End-to-end testing with real PO file processing
 
 
 

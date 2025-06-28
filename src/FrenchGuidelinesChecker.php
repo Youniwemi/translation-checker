@@ -30,6 +30,26 @@ class FrenchGuidelinesChecker
         return false;
     }
 
+    /**
+     * Remove glossary-review comments from a translation
+     */
+    private function removeGlossaryReviewComments(\Gettext\Translation $translation): void
+    {
+        $comments = $translation->getComments();
+        $commentsToRemove = [];
+
+        foreach ($comments as $comment) {
+            if (is_string($comment) && str_contains($comment, 'glossary-review:')) {
+                $commentsToRemove[] = $comment;
+            }
+        }
+
+        // Remove glossary-review comments using the delete method
+        foreach ($commentsToRemove as $comment) {
+            $comments->delete($comment);
+        }
+    }
+
     /** @return array<string, array<string>> */
     public static function loadGlossary(string $lang = 'fr'): array
     {
@@ -107,6 +127,8 @@ class FrenchGuidelinesChecker
                         if ($flag !== null) {
                             $translation->getFlags()->add($flag);
                         }
+                        // Remove glossary-review comments since we've updated the translation
+                        $this->removeGlossaryReviewComments($translation);
                     }
                 }
             }

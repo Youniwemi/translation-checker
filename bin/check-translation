@@ -70,8 +70,8 @@ HELP;
     exit(0);
 }
 
-$translate = isset($options["translate"]);
 $retranslateGlossary = isset($options["retranslate-glossary"]);
+$translate = isset($options["translate"]) || $retranslateGlossary;
 
 if ($translate) {
     $engineType = $options["engine"] ?? "openai";
@@ -87,7 +87,7 @@ if ($translate) {
                 break;
 
             case "openai":
-                $apiKey = getenv("OPENAI_API_KEY");
+                $apiKey = getenv("OPENAI_API_KEY") ?: "";
                 $apiUrl = getenv("OPENAI_API_URL");
                 $model = getenv("OPENAI_MODEL") ?: "gpt-3.5-turbo";
                 if (empty($apiKey) && empty($apiUrl)) {
@@ -122,6 +122,9 @@ if ($translate) {
     }
 
     $translator = new Translator($engine, isset($options["interactive"]));
+
+    // Set unlimited execution time for translation operations
+    ini_set("max_execution_time", 0);
 
     $checker = new FrenchGuidelinesChecker($translator);
 } else {

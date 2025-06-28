@@ -459,4 +459,30 @@ class FrenchGuidelinesCheckerTest extends TestCase
         // Should process only untranslated entries
         $this->assertIsArray($result);
     }
+
+    public function testRetranslateGlossaryRemovesGlossaryReviewComments(): void
+    {
+        // PO content with glossary-review comment
+        $po = <<<PO
+            # glossary-review: 'archive' → 'archive ou archiver'
+            msgid "Please archive your documents"
+            msgstr "Veuillez compresser vos documents"
+            PO;
+
+        // Mock translator that provides a corrected translation
+        $mockTranslator = $this->createMock(Translator::class);
+        $mockTranslator->expects($this->once())
+            ->method('translate')
+            ->willReturn(['Veuillez archiver vos documents', null]);
+
+        $checker = new FrenchGuidelinesChecker($mockTranslator);
+
+        // Test with retranslateGlossary=true and fix=true to get the fixed content
+        $result = $checker->check($po, true, true, 'fr', true);
+
+        // Should remove the glossary-review comment from the fixed content
+        $this->assertNotNull($result['fixed_content']);
+        $this->assertStringNotContainsString('glossary-review:', $result['fixed_content']);
+        $this->assertStringContainsString('Veuillez archiver vos documents', $result['fixed_content']);
+    }
 }
